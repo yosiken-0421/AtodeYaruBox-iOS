@@ -41,7 +41,7 @@ class NativeQAFixtures:
             image = artifacts / "synthetic-ocr-photo.png"
             stage = "generate_synthetic_image"
             subprocess.run(["xcrun", "swift", str(self.root / "tools/generate_photo_fixture.swift"), str(image)],
-                           cwd=self.root, check=True, timeout=60)
+                           cwd=self.root, check=True, timeout=180)
             if not image.is_file() or image.stat().st_size == 0:
                 raise RuntimeError("Synthetic photo generator did not create the fixture")
             # A newly booted hosted Simulator has not initialized its Photos

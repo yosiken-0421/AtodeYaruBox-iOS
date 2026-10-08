@@ -169,7 +169,7 @@ class BuildResultTests(unittest.TestCase):
 class SimulatorSelectionTests(unittest.TestCase):
     def select(self, devices):
         with patch.object(build_mac.subprocess, "check_output", return_value=json.dumps({"devices": devices})), \
-             patch.object(build_mac.subprocess, "run") as run, redirect_stdout(io.StringIO()):
+             patch.object(build_mac.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, stdout="Boot finished")) as run, redirect_stdout(io.StringIO()):
             chosen = build_mac.select_simulator()
         return chosen, run.call_args_list
 
@@ -203,6 +203,14 @@ class SimulatorSelectionTests(unittest.TestCase):
              patch.object(build_mac.subprocess, "run", side_effect=subprocess.CalledProcessError(1, ["xcrun"])), \
              redirect_stdout(io.StringIO()):
             with self.assertRaises(subprocess.CalledProcessError):
+                build_mac.select_simulator()
+
+    def testMigrationFailureWithExitZeroIsRejectedBeforeBuild(self):
+        phone = {"devices": {"iOS-26-5": [{"name": "iPhone", "udid": "TEST", "isAvailable": True, "state": "Booted"}]}}
+        with patch.object(build_mac.subprocess, "check_output", return_value=json.dumps(phone)), \
+             patch.object(build_mac.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, stdout="Status=3, isTerminal=YES\nData Migration Failed")), \
+             redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(RuntimeError, "data migration failed"):
                 build_mac.select_simulator()
 
 

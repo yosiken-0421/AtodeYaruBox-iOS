@@ -14,7 +14,7 @@
   "jobs": {
     "simulator": {
       "if": "${{ github.event.repository.private == false }}",
-      "runs-on": "macos-26",
+      "runs-on": "macos-15",
       "timeout-minutes": 30,
       "steps": [
         {
@@ -45,7 +45,7 @@
         {
           "name": "Collect bounded review evidence",
           "if": "always()",
-          "run": "python3 - <<'PY'\nimport hashlib, json, pathlib, re\nroot = pathlib.Path.cwd()\nsource = root / 'artifacts'\ndestination = root / 'ci-evidence'\ndestination.mkdir()\nlimit = 20 * 1024 * 1024 - 64 * 1024\ntotal = 0\nrecords = []\ncredentials = re.compile(rb'gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-(?:proj-)?[A-Za-z0-9_-]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----')\npaths = sorted(source.glob('*.json')) + sorted(source.glob('*.xml')) + sorted(source.glob('*.log'))\npaths += sorted(source.glob('UI-*/**/*.png'))\nfor path in paths:\n    if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(source.resolve()):\n        raise ValueError('Unsafe evidence path')\n    relative = path.relative_to(source)\n    size = path.stat().st_size\n    if path.suffix == '.log' and size > 1024 * 1024:\n        with path.open('rb') as file:\n            data = file.read(512 * 1024)\n            file.seek(-512 * 1024, 2)\n            data += b'\\n[Review copy truncated; full log is on the workflow run page]\\n' + file.read(512 * 1024)\n    elif size > 5 * 1024 * 1024:\n        records.append({'path': str(relative), 'copied': False, 'reason': 'per-file size limit', 'source_bytes': size})\n        continue\n    else:\n        data = path.read_bytes()\n    if credentials.search(data):\n        raise ValueError('Credential pattern detected; evidence is not uploaded')\n    if total + len(data) > limit:\n        records.append({'path': str(relative), 'copied': False, 'reason': 'archive size limit', 'source_bytes': size})\n        continue\n    target = destination / relative\n    target.parent.mkdir(parents=True, exist_ok=True)\n    target.write_bytes(data)\n    total += len(data)\n    records.append({'path': str(relative), 'copied': True, 'source_bytes': size, 'copy_bytes': len(data), 'truncated': size != len(data), 'sha256': hashlib.sha256(data).hexdigest()})\nreport = json.dumps({'copy_bytes': total, 'limit_bytes': limit, 'records': records}, indent=2).encode('utf-8')\nif len(report) > 64 * 1024:\n    raise ValueError('Evidence index exceeded its reserved size')\n(destination / 'review-copy.json').write_bytes(report)\nprint('Bounded evidence copy bytes:', total)\nPY\n"
+          "run": "python3 - <<'PY'\nimport hashlib, json, pathlib, re\nroot = pathlib.Path.cwd()\nsource = root / 'artifacts'\ndestination = root / 'ci-evidence'\ndestination.mkdir()\nlimit = 20 * 1024 * 1024 - 64 * 1024\ntotal = 0\nrecords = []\ncredentials = re.compile(rb'gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-(?:proj-)?[A-Za-z0-9_-]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----')\npaths = sorted(source.glob('*.json')) + sorted(source.glob('*.xml')) + sorted(source.glob('*.log'))\npaths += sorted(source.glob('UI-*/**/*.png'))\npaths += sorted(source.glob('UI-*/**/*.json'))\nfor path in paths:\n    if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(source.resolve()):\n        raise ValueError('Unsafe evidence path')\n    relative = path.relative_to(source)\n    size = path.stat().st_size\n    if path.suffix == '.log' and size > 1024 * 1024:\n        with path.open('rb') as file:\n            data = file.read(512 * 1024)\n            file.seek(-512 * 1024, 2)\n            data += b'\\n[Review copy truncated; full log is on the workflow run page]\\n' + file.read(512 * 1024)\n    elif size > 5 * 1024 * 1024:\n        records.append({'path': str(relative), 'copied': False, 'reason': 'per-file size limit', 'source_bytes': size})\n        continue\n    else:\n        data = path.read_bytes()\n    if credentials.search(data):\n        raise ValueError('Credential pattern detected; evidence is not uploaded')\n    if total + len(data) > limit:\n        records.append({'path': str(relative), 'copied': False, 'reason': 'archive size limit', 'source_bytes': size})\n        continue\n    target = destination / relative\n    target.parent.mkdir(parents=True, exist_ok=True)\n    target.write_bytes(data)\n    total += len(data)\n    records.append({'path': str(relative), 'copied': True, 'source_bytes': size, 'copy_bytes': len(data), 'truncated': size != len(data), 'sha256': hashlib.sha256(data).hexdigest()})\nreport = json.dumps({'copy_bytes': total, 'limit_bytes': limit, 'records': records}, indent=2).encode('utf-8')\nif len(report) > 64 * 1024:\n    raise ValueError('Evidence index exceeded its reserved size')\n(destination / 'review-copy.json').write_bytes(report)\nprint('Bounded evidence copy bytes:', total)\nPY\n"
         },
         {
           "name": "Preserve actual build and synthetic test evidence",
@@ -57,7 +57,10 @@
             "retention-days": 1
           }
         }
-      ]
+      ],
+      "env": {
+        "DEVELOPER_DIR": "/Applications/Xcode_26.3.app/Contents/Developer"
+      }
     }
   }
 }

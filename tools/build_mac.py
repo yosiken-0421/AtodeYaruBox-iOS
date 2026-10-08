@@ -170,7 +170,14 @@ def select_simulator():
     print("Using Simulator:", device["name"], device["udid"])
     if device.get("state") != "Booted":
         subprocess.run(["xcrun", "simctl", "boot", device["udid"]], check=True, cwd=ROOT)
-    subprocess.run(["xcrun", "simctl", "bootstatus", device["udid"], "-b"], check=True, cwd=ROOT)
+    boot = subprocess.run(["xcrun", "simctl", "bootstatus", device["udid"], "-b"],
+                          check=True, cwd=ROOT, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT, text=True, timeout=180)
+    print(boot.stdout, flush=True)
+    # Some hosted runtime images return exit zero for a terminal migration
+    # failure. Such a guest cannot provide valid Photos or UI test evidence.
+    if "data migration failed" in boot.stdout.casefold():
+        raise RuntimeError("Selected Simulator data migration failed before testing")
     return device
 
 

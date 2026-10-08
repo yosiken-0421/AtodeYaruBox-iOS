@@ -116,6 +116,20 @@ class NativeFixtureTests(unittest.TestCase):
         evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
         self.assertEqual(evidence["status"], "FIXTURE_SETUP_FAILED_NOT_TEST_RESULT")
 
+    def testColdGeneratorTimeoutCannotLaunchPhotosOrClaimReadiness(self):
+        def timeout_generator(arguments, **kwargs):
+            self.calls.append(arguments)
+            self.assertEqual(kwargs["timeout"], 180)
+            raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
+        with self.environment(run=timeout_generator):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                with module.NativeQAFixtures(self.root, UDID):
+                    self.fail("Generator failure was accepted")
+        evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
+        self.assertEqual(evidence["stage"], "generate_synthetic_image")
+        self.assertEqual(evidence["status"], "FIXTURE_SETUP_FAILED_NOT_TEST_RESULT")
+        self.assertEqual(len(self.calls), 1)
+
     def testMediaImportFailureCannotClaimFixturesReady(self):
         def fail_import(arguments, **kwargs):
             self.commands(arguments, **kwargs)
