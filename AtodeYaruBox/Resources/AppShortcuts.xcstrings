@@ -1,0 +1,10 @@
+{
+  "sourceLanguage": "ja",
+  "strings": {
+    "${applicationName}に保存": {},
+    "${applicationName}の今日を開く": {},
+    "${applicationName}で新しいメモ": {},
+    "${applicationName}の次の項目": {}
+  },
+  "version": "1.0"
+}

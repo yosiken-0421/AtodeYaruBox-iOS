@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <key>CFBundleDevelopmentRegion</key><string>ja</string>
+    <key>CFBundleDisplayName</key><string>あとでやる箱</string>
+    <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
+    <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>LSRequiresIPhoneOS</key><true/>
+    <key>AppGroupIdentifier</key><string>$(APP_GROUP_ID)</string>
+    <key>UILaunchScreen</key><dict/>
+    <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
+    <key>CFBundleURLTypes</key><array><dict><key>CFBundleURLName</key><string>jp.atodeyarubox</string><key>CFBundleURLSchemes</key><array><string>atodeyarubox</string></array></dict></array>
+    <key>NSCameraUsageDescription</key><string>選んだものを撮影して箱に保存するため、カメラを使います。</string>
+    <key>NSCalendarsWriteOnlyAccessUsageDescription</key><string>選んだ項目を予定としてカレンダーに追加します。既存の予定は読み取りません。</string>
+    <key>NSLocationWhenInUseUsageDescription</key><string>場所で知らせる機能を設定する時だけ位置情報の許可を確認します。</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key><string>選んだ場所への到着・出発を、アプリを閉じている間も通知します。位置を連続で記録しません。</string>
+    <key>ITSAppUsesNonExemptEncryption</key><false/>
+</dict></plist>

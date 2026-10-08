@@ -1,0 +1,16 @@
+.DS_Store
+.build/
+DerivedData/
+artifacts/
+__pycache__/
+*.xcuserstate
+xcuserdata/
+*.mobileprovision
+*.p12
+*.pem
+.env
+.env.*
+!.env.example
+Secrets.xcconfig
+tools/.venv/
+tools/vendor/
