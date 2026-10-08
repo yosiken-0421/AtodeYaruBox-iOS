@@ -126,6 +126,8 @@ def main():
             "CLANG_ENABLE_MODULES": "YES", "CLANG_ENABLE_OBJC_ARC": "YES", "CLANG_WARN_DOCUMENTATION_COMMENTS": "YES",
             "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER": "YES", "GCC_WARN_UNUSED_VARIABLE": "YES",
             "SWIFT_VERSION": "5.0", "IPHONEOS_DEPLOYMENT_TARGET": "17.0", "CODE_SIGN_STYLE": "Automatic",
+            "ONLY_ACTIVE_ARCH": "YES" if configuration == "Debug" else "NO",
+            "COPY_PHASE_STRIP": "NO" if configuration == "Debug" else "YES",
         }, name=configuration))
     project_config_list = add("project-configs", "XCConfigurationList", buildConfigurations=project_configs, defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
     add("project", "PBXProject", attributes={"BuildIndependentTargetsInParallel": "YES", "LastUpgradeCheck": "1600"},

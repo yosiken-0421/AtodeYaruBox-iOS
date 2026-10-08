@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone, timedelta
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -111,7 +112,7 @@ def inspect(root, expected_unit, expected_ui, now=None):
         "ui_passed": len(groups["UITests"] & passed), "ui_expected": len(groups["UITests"]),
         "failed_or_skipped": bad, "missing": missing, "problems": problems,
         "warnings": warnings, "compiler_warnings": compiler_warnings, "errors": raw.get("errors", []),
-        "source_sha": __import__("os").environ.get("CM_COMMIT"),
+        "source_sha": os.environ.get("CM_COMMIT") or os.environ.get("GITHUB_SHA"),
         "checked_at": now.isoformat(), "cases": outcomes, "case_errors": case_errors}
 
 

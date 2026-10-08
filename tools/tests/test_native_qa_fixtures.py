@@ -89,8 +89,24 @@ class NativeFixtureTests(unittest.TestCase):
                 evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
                 self.assertEqual(evidence["status"], "FIXTURES_READY_NOT_TEST_RESULT")
                 self.assertFalse(evidence["uses_personal_data"])
-        self.assertEqual(self.calls[1][:4], ["xcrun", "simctl", "addmedia", UDID])
+        self.assertEqual(self.calls[1], ["xcrun", "simctl", "launch", UDID, "com.apple.mobileslideshow"])
+        self.assertEqual(self.calls[2][:4], ["xcrun", "simctl", "addmedia", UDID])
         self.assertClosed(address)
+
+    def testColdLibraryTimeoutStopsOnceAndDoesNotStartSafariFixture(self):
+        def timeout_import(arguments, **kwargs):
+            self.commands(arguments, **kwargs)
+            if "addmedia" in arguments:
+                self.assertEqual(kwargs["timeout"], 180)
+                raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
+        with self.environment(run=timeout_import):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                with module.NativeQAFixtures(self.root, UDID):
+                    self.fail("Timed out image import was accepted")
+        evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
+        self.assertEqual(evidence["status"], "FIXTURE_SETUP_FAILED_NOT_TEST_RESULT")
+        self.assertEqual(evidence["stage"], "import_synthetic_image")
+        self.assertEqual(sum("addmedia" in command for command in self.calls), 1)
 
     def testMissingGeneratedImageFailsBeforeAddingMedia(self):
         with self.environment(run=lambda *args, **kwargs: None):

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 from tools import verify_native_result as gate
 
 
@@ -32,6 +33,13 @@ class NativeEvidenceTests(unittest.TestCase):
         report = self.inspect()
         self.assertEqual(report["status"], "PASS")
         self.assertEqual((report["unit_passed"], report["ui_passed"]), (1, 1))
+
+    def testGitHubRunRecordsItsExactCommitWithoutCodemagicEnvironment(self):
+        source = "a" * 40
+        with patch.dict(gate.os.environ, {"GITHUB_SHA": source}, clear=True):
+            self.assertEqual(self.inspect()["source_sha"], source)
+        with patch.dict(gate.os.environ, {}, clear=True):
+            self.assertIsNone(self.inspect()["source_sha"])
 
     def testExitZeroWithNoCasesIsRejected(self):
         self.log = "** TEST SUCCEEDED **"

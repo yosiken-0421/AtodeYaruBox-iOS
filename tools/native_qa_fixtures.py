@@ -24,6 +24,7 @@ class NativeQAFixtures:
     def __enter__(self):
         # Invalidate earlier ready evidence even when setup cannot get past preflight.
         self.record("FIXTURE_PREPARING_NOT_TEST_RESULT")
+        stage = "validate_simulator"
         try:
             if platform.system() != "Darwin":
                 raise RuntimeError("Native input QA requires the selected macOS CI Simulator")
@@ -38,12 +39,20 @@ class NativeQAFixtures:
             artifacts = self.root / "artifacts"
             artifacts.mkdir(exist_ok=True)
             image = artifacts / "synthetic-ocr-photo.png"
+            stage = "generate_synthetic_image"
             subprocess.run(["xcrun", "swift", str(self.root / "tools/generate_photo_fixture.swift"), str(image)],
                            cwd=self.root, check=True, timeout=60)
             if not image.is_file() or image.stat().st_size == 0:
                 raise RuntimeError("Synthetic photo generator did not create the fixture")
-            subprocess.run(["xcrun", "simctl", "addmedia", self.udid, str(image)],
+            # A newly booted hosted Simulator has not initialized its Photos
+            # library yet. Start the stock app on this selected guest only.
+            stage = "initialize_photos"
+            subprocess.run(["xcrun", "simctl", "launch", self.udid, "com.apple.mobileslideshow"],
                            cwd=self.root, check=True, timeout=60)
+            stage = "import_synthetic_image"
+            subprocess.run(["xcrun", "simctl", "addmedia", self.udid, str(image)],
+                           cwd=self.root, check=True, timeout=180)
+            stage = "start_loopback_fixture"
             module_path = self.root / "tools/loopback_fixture.py"
             spec = importlib.util.spec_from_file_location("atode_loopback_fixture", module_path)
             if spec is None or spec.loader is None:
@@ -56,7 +65,7 @@ class NativeQAFixtures:
             return self
         except BaseException as error:
             self.stack.close()
-            self.record("FIXTURE_SETUP_FAILED_NOT_TEST_RESULT", failure_type=type(error).__name__)
+            self.record("FIXTURE_SETUP_FAILED_NOT_TEST_RESULT", failure_type=type(error).__name__, stage=stage)
             raise
 
     def __exit__(self, *errors):
