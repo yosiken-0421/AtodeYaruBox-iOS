@@ -8,7 +8,7 @@ iOS 17以降。SwiftUI、SwiftData、Vision、UserNotifications、EventKit、Cor
 
 箱・今日・全文検索・設定、手入力、写真・ファイル入力、端末内OCRと分類、延期・完了・履歴、Share Extension、有限の通知、カレンダー・地図、Widget、Shortcuts、場所通知のソースを実装しています。
 
-2026年10月9日のSimulator検証（commit 853bfdc）は全5構成のBuild成功・コンパイラ警告0・Unit 69/69・UI 5/9。基本操作4件と、実際の写真選択→Vision OCR→返品分類→保存→全文検索が成功しました。Safariの共有画面は開きましたが保存後の本体検索が未合格。検索欄、大きな文字の項目と延期の監査も未合格で、受入判定はFAILです。これらを修正中の今回のソースは再検証待ちです。クラウドAIとCloudKit同期は未実装・OFFです。実機への署名・配布も未完了です。
+2026年10月9日のSimulator検証（commit 4407f56）は全5構成のBuild成功・コンパイラ警告0・Unit 69/69・UI 7/9。基本操作4件、Light/Darkの表示監査、実際の写真選択→Vision OCR→返品分類→保存→全文検索が成功しました。最大文字サイズの「詳細を開く」の切れと日時指定画面の操作、Safari共有のタイトル編集操作が未合格で、受入判定はFAILです。これらを修正した今回のソースは再検証待ちです。Safari保存後の本体読取りは未確認です。クラウドAIとCloudKit同期は未実装・OFFです。実機への署名・配布も未完了です。
 
 ## 自動Build/Test
 

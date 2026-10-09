@@ -10,8 +10,7 @@ struct ItemCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button { showingDetail = true } label: {
-                HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
                     if !typeSize.isAccessibilitySize {
                         Image(systemName: item.actionType.symbol).font(.title2).foregroundStyle(Color.boxAccent).accessibilityHidden(true)
                     }
@@ -30,18 +29,15 @@ struct ItemCard: View {
                         if item.status == .inbox { Label("確認待ち", systemImage: "questionmark.circle").font(.subheadline) }
                         if !item.note.isEmpty { Text(item.note).font(.subheadline).foregroundStyle(.primary).lineLimit(3) }
                         if item.status == .completed { Label("完了", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
-                        Label("詳細を開く", systemImage: "chevron.right").font(.body)
-                            .foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
                     }
                     if !typeSize.isAccessibilitySize, let url = AssetStore.url(for: item.thumbnailPath),
                        let image = UIImage(contentsOfFile: url.path) {
                         Image(uiImage: image).resizable().scaledToFill().frame(width: 56, height: 56)
                             .clipShape(RoundedRectangle(cornerRadius: 10)).accessibilityHidden(true)
                     }
-                }
             }
-            .buttonStyle(.plain)
-            .accessibilityHint("詳細を開きます")
+            BoxActionButton(title: "詳細を開く", symbol: "chevron.right", identifier: "detailButton",
+                hint: "「\(item.title)」の内容を開きます") { showingDetail = true }
             if item.status.isOpen {
                 if typeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: 12) { actionButtons }

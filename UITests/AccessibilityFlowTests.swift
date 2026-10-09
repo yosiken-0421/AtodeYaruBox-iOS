@@ -57,13 +57,13 @@ final class AccessibilityFlowTests: XCTestCase {
     @MainActor private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
         // A system audit can leave a scrolling form at a different position.
         // Look in both directions, rather than assuming every control is below.
-        for _ in 0..<8 {
-            if element.exists && element.isHittable { return }
-            app.swipeDown()
-        }
         for _ in 0..<16 {
             if element.exists && element.isHittable { return }
             app.swipeUp()
+        }
+        for _ in 0..<8 {
+            if element.exists && element.isHittable { return }
+            app.swipeDown()
         }
         XCTAssertTrue(element.isHittable, "The control must be reachable by ordinary scrolling")
     }

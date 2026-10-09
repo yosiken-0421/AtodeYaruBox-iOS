@@ -87,7 +87,7 @@ final class ExternalInputFlowTests: XCTestCase {
         search(app, query: "PHOTO123")
         let saved = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Return deadline")).firstMatch
         XCTAssertTrue(saved.waitForExistence(timeout: 10))
-        saved.tap()
+        app.buttons["detailButton"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["返品"].waitForExistence(timeout: 5), "The selected screenshot must retain its detected action after saving")
         attachment(app, name: "PhotoOCRSavedAndSearchable")
     }
@@ -167,7 +167,7 @@ final class ExternalInputFlowTests: XCTestCase {
         let title = "SafariQA-" + UUID().uuidString.prefix(8)
         let field = safari.descendants(matching: .any).matching(identifier: "sharedTitleField").firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
-        field.tap()
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
         if let old = field.value as? String { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count)) }
         field.typeText(title)
         XCTAssertEqual(field.value as? String, title, "The edited title must be reflected before saving")
@@ -185,7 +185,7 @@ final class ExternalInputFlowTests: XCTestCase {
         let imported = saved.waitForExistence(timeout: 10)
         attachment(app, name: "SafariSharedItemSearchResult")
         XCTAssertTrue(imported, "SHARED_TITLE_NOT_SEARCHABLE; " + controls(app))
-        saved.tap()
+        app.buttons["detailButton"].firstMatch.tap()
         XCTAssertTrue(app.buttons["確認しました"].waitForExistence(timeout: 5))
         let address = try XCTUnwrap(ProcessInfo.processInfo.environment["ATODE_QA_LOOPBACK_URL"])
         XCTAssertTrue(app.staticTexts[address].exists)
