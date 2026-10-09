@@ -56,7 +56,7 @@ struct SettingsView: View {
             }
         }.font(.body).foregroundStyle(Color.primary).navigationTitle("設定")
             .onChange(of: showTitles) { _, _ in session.refreshSideEffects() }
-            .fullScreenCover(isPresented: $showingReminderModes) { NotificationModeSheet(selectedRawValue: $reminderMode) }
+            .navigationDestination(isPresented: $showingReminderModes) { NotificationModeSheet(selectedRawValue: $reminderMode) }
     }
 
     private func privacyStatus(_ title: String, value: String) -> some View {

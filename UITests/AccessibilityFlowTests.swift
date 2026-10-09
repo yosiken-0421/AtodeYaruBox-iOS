@@ -53,6 +53,20 @@ final class AccessibilityFlowTests: XCTestCase {
     }
 
     @MainActor private func selectTab(_ app: XCUIApplication, label: String) {
+        // Font audits temporarily change layout. Use current stable geometry
+        // before the next ordinary tap, rather than a restored AX snapshot.
+        var previous: [CGRect]?
+        var stable = 0
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard app.state == .runningForeground, app.tabBars.firstMatch.exists else { return false }
+            let frames = [app.tabBars.firstMatch.frame, app.navigationBars.firstMatch.frame]
+                + app.tabBars.buttons.allElementsBoundByIndex.map { $0.frame }
+            stable = frames == previous ? stable + 1 : 0
+            previous = frames
+            return stable >= 2
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed,
+            "Restored navigation and tab geometry must settle before tapping")
         let tab = app.tabBars.buttons[label]
         tab.tap()
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in

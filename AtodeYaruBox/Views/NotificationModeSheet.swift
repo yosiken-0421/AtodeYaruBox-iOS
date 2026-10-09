@@ -6,8 +6,7 @@ struct NotificationModeSheet: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        NavigationStack {
-            List {
+        List {
                 Section {
                     BoxStatusText(text: "通知の知らせ方", headline: true, identifier: "reminderModeSheetTitle", textStyle: .title2)
                 }
@@ -33,6 +32,6 @@ struct NotificationModeSheet: View {
             }.font(.body).foregroundStyle(Color.primary)
                 .navigationTitle(typeSize.isAccessibilitySize ? "" : "通知")
                 .navigationBarTitleDisplayMode(.inline)
-        }.tint(.boxAccent)
+                .tint(.boxAccent)
     }
 }
