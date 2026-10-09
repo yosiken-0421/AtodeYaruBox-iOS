@@ -8,6 +8,6 @@ AppleのキーをCodemagicへ保存する接続と、AIの実行環境からCode
 
 APIでアプリを読めても、Appleの認証、保存済みintegrationの参照解決、署名の成功は別で、いずれも成功と報告しません。APIのアカウント権限は確認処理そのものより広く、このコードのGET制限はトークン自体の権限を狭めるものではありません。新しいジョブ起動、アプリ変更、他アプリ読取り、Team移動、課金設定、証明書取消、秘密鍵ダウンロード、バイナリ送信はこの確認に含めません。
 
-本人操作は、Codemagicの認証欄を開く工程と、GitHubの暗号化されたActions secretへの直接保存を一件ずつ案内します。一般のAPI説明はAccount settings > API tokenですが、本人のPersonal account settingsの画像には単独のAPI token項目がありませんでした。Codemagic自身の[公式サンプル](https://github.com/codemagic-ci-cd/white-label-demo-project)にあるPersonal Account > Integrations > Codemagic API経路を確認し、画像で見えているIntegrationsを入口に案内します。展開後の実際の項目は本人画面で確認し、表示されるまで存在を断定しません。Show/Revokeや秘密値のチャット送信は、入口の確認では依頼しません。保存後の存在確認と起動・結果確認はAIが行い、本人へテスト実行を依頼しません。保存したことをAPI認証の成功と混同しません。
+本人操作は、Codemagicの認証欄を開く工程と、GitHubの暗号化されたActions secretへの直接保存を一件ずつ案内します。現在の入口は[Account settings](https://codemagic.io/settings)のAPI token欄です。2026-10-10、一般公開されている現在のWebアプリのナビゲーション、/settingsへのルート、該当画面のAPI token表示を照合しました。メニューのSettingsはPersonal/Teamの設定へ移動するため、認証欄には直接URLを使います。本人画像ではPersonal account settingsにも、そのIntegrations内にもAPI tokenがなく、旧サンプルのIntegrations経路は現在の入口として使いません。本人のログイン済み端末での表示はまだ未確認です。Show/Revokeや秘密値のチャット送信は、入口の確認では依頼しません。保存後の存在確認と起動・結果確認はAIが行い、本人へテスト実行を依頼しません。保存したことをAPI認証の成功と混同しません。
 
 公式仕様：[Codemagic API認証](https://docs.codemagic.io/rest-api/codemagic-rest-api/)、[アプリ読取りAPI](https://docs.codemagic.io/rest-api/applications/)、[GitHub Actions secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)。
