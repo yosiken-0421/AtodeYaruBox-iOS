@@ -83,12 +83,21 @@ struct LocationReminderView: View {
     }
 
     private func coordinate(for result: MKMapItem) -> CLLocationCoordinate2D {
+        // Xcode 16 does not expose the iOS 26 MapKit members at compile time.
+        #if compiler(>=6.2)
         if #available(iOS 26.0, *) { return result.location.coordinate }
         else { return result.placemark.coordinate }
+        #else
+        return result.placemark.coordinate
+        #endif
     }
 
     private func address(for result: MKMapItem) -> String {
+        #if compiler(>=6.2)
         if #available(iOS 26.0, *) { return result.address?.fullAddress ?? "" }
         else { return result.placemark.title ?? "" }
+        #else
+        return result.placemark.title ?? ""
+        #endif
     }
 }
