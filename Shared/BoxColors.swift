@@ -44,8 +44,8 @@ struct BoxActionButton: UIViewRepresentable {
     let action: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(action: action) }
-    func makeUIView(context: Context) -> UIButton {
-        let button = UIButton(type: .custom)
+    func makeUIView(context: Context) -> BoxNativeActionButton {
+        let button = BoxNativeActionButton(frame: .zero)
         button.addTarget(context.coordinator, action: #selector(Coordinator.activate), for: .touchUpInside)
         button.titleLabel?.adjustsFontForContentSizeCategory = true
         button.titleLabel?.numberOfLines = 0
@@ -54,25 +54,22 @@ struct BoxActionButton: UIViewRepresentable {
         configure(button, context: context)
         return button
     }
-    func updateUIView(_ button: UIButton, context: Context) {
+    func updateUIView(_ button: BoxNativeActionButton, context: Context) {
         context.coordinator.action = action
         configure(button, context: context)
         button.invalidateIntrinsicContentSize()
     }
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UIButton, context: Context) -> CGSize? {
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: BoxNativeActionButton, context: Context) -> CGSize? {
         let width = max(44, proposal.width ?? uiView.intrinsicContentSize.width)
         let fitted = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
         return CGSize(width: width, height: max(44, fitted.height))
     }
-    private func configure(_ button: UIButton, context: Context) {
-        let category = contentCategory(context.environment.dynamicTypeSize)
-        let traits = button.traitCollection.modifyingTraits { $0.preferredContentSizeCategory = category }
-        let font = UIFont.preferredFont(forTextStyle: prominent ? .headline : .body, compatibleWith: traits)
+    private func configure(_ button: BoxNativeActionButton, context: Context) {
+        button.textStyle = prominent ? .headline : .body
+        button.symbolName = symbol
         let accent = UIColor(named: "BoxAccent") ?? .systemTeal
         var configuration = UIButton.Configuration.plain()
         configuration.title = title
-        configuration.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(font: font))?
-            .withTintColor(accent, renderingMode: .alwaysOriginal)
         configuration.imagePadding = 8
         configuration.titleLineBreakMode = .byWordWrapping
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 14, bottom: 12, trailing: 14)
@@ -81,13 +78,8 @@ struct BoxActionButton: UIViewRepresentable {
         configuration.background.strokeColor = accent
         configuration.background.strokeWidth = prominent ? 2 : 1.5
         configuration.background.cornerRadius = 12
-        configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
-            var attributes = incoming
-            attributes.font = font
-            attributes.foregroundColor = .label
-            return attributes
-        }
         button.configuration = configuration
+        button.setNeedsUpdateConfiguration()
         button.isEnabled = context.environment.isEnabled
         button.titleLabel?.adjustsFontForContentSizeCategory = true
         button.titleLabel?.numberOfLines = 0
@@ -96,9 +88,6 @@ struct BoxActionButton: UIViewRepresentable {
         button.accessibilityIdentifier = identifier
         button.accessibilityLabel = title
         button.accessibilityHint = hint
-    }
-    private func contentCategory(_ size: DynamicTypeSize) -> UIContentSizeCategory {
-        BoxTypography.category(size)
     }
     @MainActor final class Coordinator: NSObject {
         var action: () -> Void
@@ -117,8 +106,8 @@ struct BoxStatusText: UIViewRepresentable {
     var centered = false
     var background: UIColor = .secondarySystemGroupedBackground
 
-    func makeUIView(context: Context) -> UILabel {
-        let label = UILabel()
+    func makeUIView(context: Context) -> BoxNativeStatusLabel {
+        let label = BoxNativeStatusLabel(frame: .zero)
         label.numberOfLines = 0
         label.lineBreakMode = .byWordWrapping
         label.adjustsFontForContentSizeCategory = true
@@ -127,13 +116,10 @@ struct BoxStatusText: UIViewRepresentable {
         updateUIView(label, context: context)
         return label
     }
-    func updateUIView(_ label: UILabel, context: Context) {
-        let category = BoxTypography.category(context.environment.dynamicTypeSize)
-        let traits = label.traitCollection.modifyingTraits { $0.preferredContentSizeCategory = category }
-        let font = UIFont.preferredFont(forTextStyle: textStyle ?? (headline ? .headline : .body), compatibleWith: traits)
-        if headline, let descriptor = font.fontDescriptor.withSymbolicTraits(.traitBold) {
-            label.font = UIFont(descriptor: descriptor, size: font.pointSize)
-        } else { label.font = font }
+    func updateUIView(_ label: BoxNativeStatusLabel, context: Context) {
+        label.textStyle = textStyle ?? (headline ? .headline : .body)
+        label.bold = headline
+        label.updateFont()
         label.text = text
         label.textAlignment = centered ? .center : .natural
         label.textColor = .label
@@ -143,7 +129,7 @@ struct BoxStatusText: UIViewRepresentable {
         label.accessibilityLabel = text
         label.invalidateIntrinsicContentSize()
     }
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UILabel, context: Context) -> CGSize? {
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: BoxNativeStatusLabel, context: Context) -> CGSize? {
         let width = max(1, proposal.width ?? uiView.intrinsicContentSize.width)
         let fitted = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
         return CGSize(width: width, height: fitted.height)

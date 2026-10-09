@@ -34,6 +34,29 @@ class NativeEvidenceTests(unittest.TestCase):
         self.assertEqual(report["status"], "PASS")
         self.assertEqual((report["unit_passed"], report["ui_passed"]), (1, 1))
 
+    def testDebugPrefixedNativeLogRetainsRealPassesAndFailures(self):
+        self.result["logs"] = ["debug-build-fresh.log", "debug-test-fresh.log"]
+        path = self.root / "artifacts/debug-test-fresh.log"
+        path.write_text(self.log, encoding="utf-8")
+        self.assertEqual(self.inspect()["status"], "PASS")
+        path.write_text(self.log.replace("testSave]' passed", "testSave]' failed"), encoding="utf-8")
+        self.result["test_exit_code"] = 65
+        self.result["tests"] = "FAIL"
+        report = self.inspect()
+        self.assertEqual(report["status"], "FAIL")
+        self.assertTrue(report["native_xctest"])
+        self.assertEqual((report["unit_passed"], report["ui_passed"]), (0, 1))
+        self.assertEqual(report["failed_or_skipped"], ["ExampleTests.testSave"])
+
+    def testReleaseUnsafeOrDuplicateTestLogCannotStandInForDebugXCTest(self):
+        for names in [["release-test-fresh.log"], ["../test-fresh.log"],
+                      ["test-fresh.log", "debug-test-fresh.log"]]:
+            with self.subTest(names=names):
+                self.result["logs"] = names
+                report = self.inspect()
+                self.assertEqual(report["status"], "FAIL")
+                self.assertFalse(report["native_xctest"])
+
     def testGitHubRunRecordsItsExactCommitWithoutCodemagicEnvironment(self):
         source = "a" * 40
         with patch.dict(gate.os.environ, {"GITHUB_SHA": source}, clear=True):

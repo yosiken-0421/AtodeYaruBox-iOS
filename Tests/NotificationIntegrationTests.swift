@@ -68,6 +68,9 @@ final class NotificationIntegrationTests: XCTestCase {
         try await scheduler.reconcile(items: items, now: now)
         let requests = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("time.") }
         XCTAssertEqual(requests.count, 48)
+        let settings = await center.notificationSettings()
+        let expectedLevel: UNNotificationInterruptionLevel = settings.timeSensitiveSetting == .enabled ? .timeSensitive : .active
+        XCTAssertTrue(requests.allSatisfy { $0.content.interruptionLevel == expectedLevel })
         let identifiers = Set(items.map { $0.id.uuidString })
         XCTAssertTrue(requests.allSatisfy { identifiers.contains($0.content.userInfo["itemID"] as? String ?? "") })
         XCTAssertEqual(Set(requests.compactMap { $0.content.userInfo["itemID"] as? String }).count, 48)

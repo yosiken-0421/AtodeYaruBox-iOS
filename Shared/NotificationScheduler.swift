@@ -59,7 +59,7 @@ final class NotificationScheduler {
         }.map(\.identifier))
         for plan in plans {
             guard currentGeneration == generation, !Task.isCancelled else { return }
-            let content = Self.content(title: plan.title, id: plan.itemID, mode: plan.mode)
+            let content = Self.content(title: plan.title, id: plan.itemID, mode: plan.mode, timeSensitiveAllowed: settings.timeSensitiveSetting == .enabled)
             let trigger = Self.trigger(for: plan.date)
             try await center.add(UNNotificationRequest(identifier: plan.identifier, content: content, trigger: trigger))
         }
@@ -70,7 +70,7 @@ final class NotificationScheduler {
             region.notifyOnEntry = location.onEntry
             region.notifyOnExit = !location.onEntry
             try await center.add(UNNotificationRequest(identifier: "location.\(id.uuidString)",
-                content: Self.content(title: title, id: id, mode: mode),
+                content: Self.content(title: title, id: id, mode: mode, timeSensitiveAllowed: settings.timeSensitiveSetting == .enabled),
                 trigger: UNLocationNotificationTrigger(region: region, repeats: false)))
         }
     }
@@ -93,7 +93,7 @@ final class NotificationScheduler {
         center.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
     private static func isOwned(_ id: String) -> Bool { id.hasPrefix("time.") || id.hasPrefix("location.") }
-    private static func content(title: String, id: UUID, mode: ReminderMode) -> UNMutableNotificationContent {
+    private static func content(title: String, id: UUID, mode: ReminderMode, timeSensitiveAllowed: Bool) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         // Generic lock-screen text by default; the title stays on the device and inside the app.
         content.title = "あとでやる箱"
@@ -102,7 +102,10 @@ final class NotificationScheduler {
         content.categoryIdentifier = categoryID
         content.userInfo = ["itemID": id.uuidString]
         if mode != .quiet { content.sound = .default }
-        if mode == .strong || mode == .persistent { content.interruptionLevel = .timeSensitive }
+        // Finite repeats work even when the OS does not permit Time Sensitive alerts.
+        if (mode == .strong || mode == .persistent), timeSensitiveAllowed {
+            content.interruptionLevel = .timeSensitive
+        }
         return content
     }
 }

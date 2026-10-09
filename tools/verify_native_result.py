@@ -67,7 +67,9 @@ def inspect(root, expected_unit, expected_ui, now=None):
     bundle = raw.get("result_bundle") or ""
     if not bundle or Path(bundle).name != bundle or not bundle.endswith(".xcresult") or not (artifacts / bundle).is_dir():
         problems.append("Actual XCTest result bundle is missing")
-    logs = [name for name in raw.get("logs", []) if re.fullmatch(r"test-[\w-]+\.log", name)]
+    # Debug/Release separation added a prefix to the native runner's log names.
+    # Accept the legacy name too; never read Release or arbitrary paths as XCTest.
+    logs = [name for name in raw.get("logs", []) if re.fullmatch(r"(?:debug-)?test-[\w-]+\.log", name)]
     text = ""
     if len(logs) != 1:
         problems.append("Expected exactly one actual XCTest execution log")
