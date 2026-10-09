@@ -167,6 +167,12 @@ class BuildResultTests(unittest.TestCase):
 
 
 class SimulatorSelectionTests(unittest.TestCase):
+    def setUp(self):
+        environment = patch.dict(build_mac.os.environ, {}, clear=False)
+        environment.start()
+        self.addCleanup(environment.stop)
+        build_mac.os.environ.pop("ATODE_QA_IOS_RUNTIME", None)
+
     def select(self, devices):
         with patch.object(build_mac.subprocess, "check_output", return_value=json.dumps({"devices": devices})), \
              patch.object(build_mac.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, stdout="Boot finished")) as run, redirect_stdout(io.StringIO()):
@@ -187,6 +193,21 @@ class SimulatorSelectionTests(unittest.TestCase):
         _, calls = self.select({"iOS-17-5": [{"name": "iPhone", "udid": "BOOTED", "isAvailable": True, "state": "Booted"}]})
         self.assertEqual(len(calls), 1)
         self.assertIn("bootstatus", calls[0].args[0])
+
+    def testExplicitSupportedRuntimeCannotSilentlyUseNewerGuest(self):
+        phone = lambda udid: {"name": "iPhone", "udid": udid, "isAvailable": True, "state": "Booted"}
+        with patch.dict(build_mac.os.environ, {"ATODE_QA_IOS_RUNTIME": "18.5"}):
+            device, _ = self.select({"iOS-18-5": [phone("EXPECTED")], "iOS-26-2": [phone("NEWER")]})
+            self.assertEqual(device["udid"], "EXPECTED")
+            with self.assertRaisesRegex(RuntimeError, "18.5"):
+                self.select({"iOS-26-2": [phone("NEWER")]})
+
+    def testInvalidRuntimeRejectedBeforeSimulatorInventory(self):
+        with patch.dict(build_mac.os.environ, {"ATODE_QA_IOS_RUNTIME": "../../bad"}), \
+             patch.object(build_mac.subprocess, "check_output") as inventory:
+            with self.assertRaises(ValueError):
+                build_mac.select_simulator()
+            inventory.assert_not_called()
 
     def testMissingCompatibleRuntimeIsAnError(self):
         with self.assertRaisesRegex(RuntimeError, "iOS 17"):

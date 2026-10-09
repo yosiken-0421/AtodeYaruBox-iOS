@@ -153,6 +153,10 @@ def main(scope="all", simulator_signing=False, external_input_qa=False):
 
 
 def select_simulator():
+    requested = os.environ.get("ATODE_QA_IOS_RUNTIME")
+    if requested is not None and not re.fullmatch(r"(?:1[7-9]|[2-9][0-9])\.[0-9]{1,2}", requested):
+        raise ValueError("Invalid requested QA iOS runtime")
+    requested_version = tuple(map(int, requested.split("."))) if requested else None
     raw = subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "--json"],
                                   text=True, encoding="utf-8", stderr=subprocess.STDOUT)
     inventory = json.loads(raw)
@@ -161,10 +165,14 @@ def select_simulator():
         version = re.search(r"iOS-(\d+)-(\d+)", runtime)
         if not version or int(version.group(1)) < 17:
             continue
+        if requested_version and tuple(map(int, version.groups())) != requested_version:
+            continue
         for device in devices:
             if device.get("isAvailable") and device.get("name", "").startswith("iPhone") and device.get("udid"):
                 phones.append(((int(version.group(1)), int(version.group(2))), device))
     if not phones:
+        if requested:
+            raise RuntimeError("Requested iOS Simulator " + requested + " is not installed")
         raise RuntimeError("No available iOS 17+ iPhone Simulator; install a compatible runtime before retrying")
     device = sorted(phones, key=lambda entry: (entry[0], entry[1]["name"]), reverse=True)[0][1]
     print("Using Simulator:", device["name"], device["udid"])

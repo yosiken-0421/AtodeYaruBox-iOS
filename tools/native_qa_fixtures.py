@@ -65,7 +65,20 @@ class NativeQAFixtures:
             return self
         except BaseException as error:
             self.stack.close()
-            self.record("FIXTURE_SETUP_FAILED_NOT_TEST_RESULT", failure_type=type(error).__name__, stage=stage)
+            screenshot = None
+            if stage in {"initialize_photos", "import_synthetic_image"}:
+                # Only this already-validated synthetic CI guest is captured.
+                # Diagnostic failure must never hide the original setup error.
+                image = self.root / "artifacts/fixture-setup-failure.png"
+                try:
+                    subprocess.run(["xcrun", "simctl", "io", self.udid, "screenshot", str(image)],
+                                   cwd=self.root, check=True, timeout=15)
+                    if image.is_file():
+                        screenshot = image.name
+                except (OSError, subprocess.SubprocessError):
+                    pass
+            self.record("FIXTURE_SETUP_FAILED_NOT_TEST_RESULT", failure_type=type(error).__name__,
+                        stage=stage, simulator_screenshot=screenshot)
             raise
 
     def __exit__(self, *errors):

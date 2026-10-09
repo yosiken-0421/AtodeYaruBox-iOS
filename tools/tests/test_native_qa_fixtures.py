@@ -142,6 +142,23 @@ class NativeFixtureTests(unittest.TestCase):
         evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
         self.assertEqual(evidence["status"], "FIXTURE_SETUP_FAILED_NOT_TEST_RESULT")
 
+    def testFailedImportCapturesOnlySelectedGuestAndPreservesOriginalFailure(self):
+        def fail_and_capture(arguments, **kwargs):
+            self.commands(arguments, **kwargs)
+            if "addmedia" in arguments:
+                raise subprocess.CalledProcessError(1, arguments)
+            if "screenshot" in arguments:
+                Path(arguments[-1]).write_bytes(b'mock-screenshot')
+        with self.environment(run=fail_and_capture):
+            with self.assertRaises(subprocess.CalledProcessError):
+                with module.NativeQAFixtures(self.root, UDID):
+                    self.fail("Import failure was hidden")
+        capture = self.calls[-1]
+        self.assertEqual(capture[:5], ["xcrun", "simctl", "io", UDID, "screenshot"])
+        evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
+        self.assertEqual(evidence["simulator_screenshot"], "fixture-setup-failure.png")
+        self.assertEqual(evidence["status"], "FIXTURE_SETUP_FAILED_NOT_TEST_RESULT")
+
     def testSetupFailureCannotLeaveStaleReadyEvidence(self):
         (self.root / "artifacts").mkdir()
         evidence_path = self.root / "artifacts/external-input-fixtures.json"
