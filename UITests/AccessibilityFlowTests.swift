@@ -25,9 +25,16 @@ final class AccessibilityFlowTests: XCTestCase {
         image.name = name
         image.lifetime = .keepAlways
         add(image)
-        // Every issue fails the test. No label, contrast, clipping or target-size exclusions.
-        do {
-            try app.performAccessibilityAudit { issue in
+        // Keep every audit type, with text resizing in its own system request.
+        // The combined audit exceeded the framework's deadline on the first
+        // hosted screen; separate requests also identify the affected group. Each
+        // group runs once; any issue or timeout still fails this XCTest case.
+        let sizing: XCUIAccessibilityAuditType = [.dynamicType, .textClipped]
+        let other = XCUIAccessibilityAuditType.all.subtracting(sizing)
+        XCTAssertEqual(other.union(sizing), .all)
+        for auditTypes in [other, sizing] {
+          do {
+            try app.performAccessibilityAudit(for: auditTypes) { issue in
                 let element = issue.element
                 let type = issue.auditType
                 let kinds = [(XCUIAccessibilityAuditType.contrast, "CONTRAST"), (.dynamicType, "DYNAMIC_TYPE"),
@@ -38,9 +45,10 @@ final class AccessibilityFlowTests: XCTestCase {
                 XCTFail("Accessibility audit [\(name)]: kind=\(kinds) rawType=\(type.rawValue) | \(issue.compactDescription) | \(issue.detailedDescription) | element=\(element?.identifier ?? "") label=\(element?.label ?? "") frame=\(String(describing: element?.frame))")
                 return false
             }
-        } catch {
+          } catch {
             // Preserve the audit failure, while inspecting subsequent tabs too.
-            XCTFail("Accessibility audit [\(name)] did not complete cleanly: \(error)")
+            XCTFail("Accessibility audit [\(name)] types=\(auditTypes.rawValue) did not complete cleanly: \(error)")
+          }
         }
     }
 
