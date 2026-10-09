@@ -1,5 +1,7 @@
 # Codemagicへの読み取り接続
 
+保存名の取得結果で先頭のASCII空白4文字を確認しました。`codemagic.yaml` の参照値にそれを含め、キー自体を変更せず一致させます。Mac処理を開始する前に、Personalアカウントの現在の無料M2利用量と、当該アカウントのCI/CD有料subscriptionが有効でないことをGETで確認します。Codemagicの公開Webアプリではbilling.usage.freeLimit.buildTimeが無料秒数上限、currentPeriod.buildTime.mac_mini_m2_freeが消費秒数です。現在値が検証できなければ無料枠確認は成功にせず、古い画像を現在の残量として扱いません。
+
 2026-10-10：暗号化されたActions secretの保存と、既存アプリのGETによる認証成功を確認しました。[実行記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/37976837550)。Appleの認証や署名の成功とは区別します。秘密値・任意の応答テキストは保存しません。
 
 追加の[所属先・登録名の確認](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/37978005029)は成功。アプリは本人のPersonalアカウントに所属し、Apple接続は有効でした。保存名は `AtodeYaruBox-CI` と完全一致せず、Unicode表記の正規化と外側の空白除去を行うと一致します。所属の取り違えとは扱いません。既知のこの名前へ正規化できる唯一の保存名だけ、64文字以下・制御文字なしを条件に文字番号として取得し、ビルド側の参照を正確な保存名へ合わせます。任意の登録名、メール、所属ID、Key IDや秘密値は取得結果へ出しません。Appleキーの取消・再作成は不要です。

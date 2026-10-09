@@ -105,6 +105,21 @@ class Checks(unittest.TestCase):
             self.assertEqual(result["status"], "CONTEXT_READ_UNAVAILABLE")
             self.assertNotIn(TOKEN, json.dumps(result))
 
+    def test_free_budget_requires_valid_counter_and_no_paid_subscription(self):
+        user = {"billing": {"usage": {"freeLimit": {"buildTime": 30000},
+                "currentPeriod": {"buildTime": {"mac_mini_m2_free": 23940}}}}}
+        self.assertEqual(m.free_budget(user, [])["free_m2_remaining_seconds"], 6060)
+        self.assertTrue(m.free_budget(user, [])["free_allowance_verified"])
+        self.assertFalse(m.free_budget(user, [{"category": "cicd", "status": "active"}])["free_allowance_verified"])
+        self.assertFalse(m.free_budget(user, [{"category": "cicd", "status": TOKEN}])["free_allowance_verified"])
+        self.assertFalse(m.free_budget({}, [])["free_allowance_verified"])
+
+    def test_invalid_budget_numbers_fail_closed(self):
+        for value in (TOKEN, True, -1, float("nan"), 1000000):
+            user = {"billing": {"usage": {"freeLimit": {"buildTime": value},
+                    "currentPeriod": {"buildTime": {"mac_mini_m2_free": 0}}}}}
+            self.assertFalse(m.free_budget(user, [])["free_allowance_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 """Compare the approved app's owner context and saved Apple alias, read only."""
 from datetime import datetime, timezone
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -51,6 +52,28 @@ def alias_metadata(context):
     return result
 
 
+def free_budget(user, subscriptions):
+    result = {"free_allowance_verified": False, "paid_cicd_subscription_present": False}
+    try:
+        usage = user["billing"]["usage"]
+        limit = usage["freeLimit"]["buildTime"]
+        used = usage["currentPeriod"]["buildTime"]["mac_mini_m2_free"]
+        if any(type(value) not in (int, float) or not math.isfinite(value) or not 0 <= value <= 864000 for value in (limit, used)):
+            return result
+        if not isinstance(subscriptions, list) or len(subscriptions) > 50:
+            return result
+        for subscription in subscriptions:
+            if (not isinstance(subscription, dict) or subscription.get("category") not in ("cicd", "codepush")
+                    or subscription.get("status") not in ("disabled", "active", "incomplete", "incomplete_expired", "unpaid", "paused", "past_due", "trialing", "canceled")):
+                return result
+        paid = any(s["category"] == "cicd" and s["status"] not in ("disabled", "canceled", "incomplete_expired") for s in subscriptions)
+        return {"free_allowance_verified": not paid, "paid_cicd_subscription_present": paid,
+                "free_m2_remaining_seconds": max(0, math.floor(limit-used)),
+                "free_m2_limit_seconds": math.floor(limit), "free_m2_used_seconds": math.ceil(used)}
+    except (KeyError, TypeError):
+        return result
+
+
 def inspect(token, opener=None):
     result = {"status": "NOT_AUTHENTICATED", "app_id": APP_ID,
               "app_owner_verified": False, "personal_context_owns_app": False,
@@ -65,10 +88,12 @@ def inspect(token, opener=None):
     def get(path, stage):
         # Every request is GET. Only the target app, its known failed build, the
         # authenticated owner context and that app's validated owner team are used.
-        if path not in ("/apps/" + APP_ID, "/builds/" + BUILD_ID, "/user") and not (
+        subscription_path = "/api/v3/teams/" + owner + "/subscriptions" if valid_id(owner) else None
+        if path not in ("/apps/" + APP_ID, "/builds/" + BUILD_ID, "/user", subscription_path) and not (
                 path.startswith("/team/") and valid_id(path.removeprefix("/team/"))):
             raise Unavailable("REQUEST_SCOPE")
-        request = urllib.request.Request("https://api.codemagic.io" + path, method="GET",
+        host = "https://codemagic.io" if path == subscription_path else "https://api.codemagic.io"
+        request = urllib.request.Request(host + path, method="GET",
             headers={"x-auth-token": token, "Accept": "application/json",
                      "User-Agent": "AtodeYaruBox-Integration-ReadOnly"})
         try:
@@ -86,6 +111,7 @@ def inspect(token, opener=None):
             raise Unavailable(stage) from None
 
     try:
+        owner = None
         application = get("/apps/" + APP_ID, "APP").get("application", {})
         if not isinstance(application, dict) or application.get("_id") != APP_ID:
             raise Unavailable("APP_IDENTITY")
@@ -114,6 +140,13 @@ def inspect(token, opener=None):
             if not isinstance(context, dict) or context.get("_id") != owner:
                 raise Unavailable("APP_TEAM_IDENTITY")
         result.update(alias_metadata(context))
+        result["free_allowance_verified"] = False
+        if personal and free_budget(user, []).get("free_allowance_verified"):
+            try:
+                subscriptions = get("/api/v3/teams/" + owner + "/subscriptions", "SUBSCRIPTIONS")
+                result.update(free_budget(user, subscriptions.get("data")))
+            except Unavailable:
+                pass
         result["status"] = "APP_INTEGRATION_METADATA_READ"
         return result
     except Unavailable as error:
