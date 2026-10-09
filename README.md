@@ -8,9 +8,13 @@ iOS 17以降。SwiftUI、SwiftData、Vision、UserNotifications、EventKit、Cor
 
 箱・今日・全文検索・設定、手入力、写真・ファイル入力、端末内OCRと分類、延期・完了・履歴、Share Extension、有限の通知、カレンダー・地図、Widget、Shortcuts、場所通知のソースを実装しています。
 
-2026年10月9日のSimulator検証（commit 0e9fdd4）は全5構成のBuild成功・コンパイラ警告0・Unit 69/69・UI 9/9、全78件が各1回成功し、厳密受入はPASSです。基本操作4件、Light/Darkと最大文字サイズの表示監査、実際の写真選択→Vision OCR→返品分類→保存→全文検索、Safariから実共有→保存→本体検索→確認待ちと元URL表示が成功しました。[実行記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/37896573653)
+2026年10月9日の検証（ソースcommit `300dc7f7143c3c9e6fc0615effe70bd10efb6950`）は、全5構成のDebug Build成功・Unit 76/76・UI 10/10、全86件が各1回成功し、厳密受入はPASSです。失敗・Skip・コンパイルエラー・コンパイラ警告は0です。別のRelease Simulator Buildと、署名なしのiPhoneOS/arm64 Release Archiveも成功しました。[実行記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/37913596688)
 
-今回のソースでは、通知の実配送と取消、実ファイルの読み込み上限、App Intentの保存・完了・画面遷移、最大文字サイズでの初回3ページを追加し、全86件へ検証を拡張しています。通知・Intentの変更操作には端末認証を要求します。「編集」「今日」からの追加は日本語付きの通常ボタンです。追加分とReleaseビルドは再検証待ちです。クラウドAIとCloudKit同期は未実装・OFFです。実機への署名・配布も未完了です。
+基本操作、Light/Darkと最大文字サイズの全種類の表示監査、実際の写真選択→Vision OCR→返品分類→保存→全文検索、Safariから実共有→保存→本体検索、通知の実配送と完了前後の取消、実ファイルの読み込み上限、App Intentの直接実行による保存・完了・画面遷移、最大文字での初回3ページをSimulatorで検証しました。通知・Intentの変更操作には端末認証を要求する設定を実装しています。「編集」「今日」からの追加は日本語付きの通常ボタンです。
+
+実機への署名・インストール・配布は未完了です。署名なしArchiveはインストール用ではなく、公開CIにはバイナリを保存していません。実機のWidget・Siri・位置通知・権限拒否の確認も残っています。クラウドAIとCloudKit同期は未実装・OFFです。
+
+コンパイラ警告とは別に、Debugのテスト用ターゲットのIntentメタデータ抽出省略1件と、Release Simulatorの署名済み拡張バイナリのstrip省略2件を記録しています。署名なしiPhone用Archiveの警告は0です。検証後のREADME更新は説明だけで、検証済みソース・テスト・設定を変更しません。
 
 ## 自動Build/Test
 
