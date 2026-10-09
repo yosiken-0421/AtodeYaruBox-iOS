@@ -2,6 +2,7 @@
 from contextlib import ExitStack
 import importlib.util
 import json
+import os
 from pathlib import Path
 import platform
 import re
@@ -13,13 +14,62 @@ class NativeQAFixtures:
         self.root = Path(root).resolve()
         self.udid = udid
         self.stack = ExitStack()
+        self.photo_import_attempts = 0
+        self.photo_recovery_stage = None
+        self.initial_photo_import_failure = None
 
     def record(self, status, **details):
         artifacts = self.root / "artifacts"
         artifacts.mkdir(exist_ok=True)
         (artifacts / "external-input-fixtures.json").write_text(json.dumps({
-            "status": status, "loopback_only": True, "uses_personal_data": False, **details,
+            "status": status, "loopback_only": True, "uses_personal_data": False,
+            "photo_import_attempts": self.photo_import_attempts,
+            "photo_recovery_stage": self.photo_recovery_stage,
+            "initial_photo_import_failure": self.initial_photo_import_failure, **details,
         }, indent=2), encoding="utf-8")
+
+    def import_synthetic_photo(self, image):
+        arguments = ["xcrun", "simctl", "addmedia", self.udid, str(image)]
+        self.photo_import_attempts = 1
+        try:
+            subprocess.run(arguments, cwd=self.root, check=True, timeout=180)
+            return
+        except subprocess.TimeoutExpired:
+            # Recover fixture setup once, before any XCTest execution. Never
+            # erase data, restart other guests, retry tests, or accept a timeout.
+            self.initial_photo_import_failure = "TimeoutExpired"
+            if os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted":
+                self.photo_recovery_stage = "not_permitted_outside_hosted_ci"
+                raise
+            self.photo_recovery_stage = "shutdown"
+            self.record("FIXTURE_RECOVERING_NOT_TEST_RESULT", stage="import_synthetic_image")
+            self.capture_guest()
+            subprocess.run(["xcrun", "simctl", "shutdown", self.udid],
+                           cwd=self.root, check=True, timeout=60)
+            self.photo_recovery_stage = "boot"
+            subprocess.run(["xcrun", "simctl", "boot", self.udid],
+                           cwd=self.root, check=True, timeout=60)
+            self.photo_recovery_stage = "bootstatus"
+            boot = subprocess.run(["xcrun", "simctl", "bootstatus", self.udid, "-b"],
+                                  cwd=self.root, check=True, timeout=180,
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            if "data migration failed" in boot.stdout.casefold():
+                raise RuntimeError("Selected QA Simulator data migration failed during photo recovery")
+            # Import without relaunching the stock Photos UI after the reboot.
+            # A second failure remains a setup failure and blocks acceptance.
+            self.photo_recovery_stage = "second_import"
+            self.photo_import_attempts = 2
+            subprocess.run(arguments, cwd=self.root, check=True, timeout=180)
+            self.photo_recovery_stage = "completed"
+
+    def capture_guest(self):
+        image = self.root / "artifacts/fixture-setup-failure.png"
+        try:
+            subprocess.run(["xcrun", "simctl", "io", self.udid, "screenshot", str(image)],
+                           cwd=self.root, check=True, timeout=15)
+            return image.name if image.is_file() else None
+        except (OSError, subprocess.SubprocessError):
+            return None
 
     def __enter__(self):
         # Invalidate earlier ready evidence even when setup cannot get past preflight.
@@ -50,8 +100,7 @@ class NativeQAFixtures:
             subprocess.run(["xcrun", "simctl", "launch", self.udid, "com.apple.mobileslideshow"],
                            cwd=self.root, check=True, timeout=60)
             stage = "import_synthetic_image"
-            subprocess.run(["xcrun", "simctl", "addmedia", self.udid, str(image)],
-                           cwd=self.root, check=True, timeout=180)
+            self.import_synthetic_photo(image)
             stage = "start_loopback_fixture"
             module_path = self.root / "tools/loopback_fixture.py"
             spec = importlib.util.spec_from_file_location("atode_loopback_fixture", module_path)
@@ -69,14 +118,7 @@ class NativeQAFixtures:
             if stage in {"initialize_photos", "import_synthetic_image"}:
                 # Only this already-validated synthetic CI guest is captured.
                 # Diagnostic failure must never hide the original setup error.
-                image = self.root / "artifacts/fixture-setup-failure.png"
-                try:
-                    subprocess.run(["xcrun", "simctl", "io", self.udid, "screenshot", str(image)],
-                                   cwd=self.root, check=True, timeout=15)
-                    if image.is_file():
-                        screenshot = image.name
-                except (OSError, subprocess.SubprocessError):
-                    pass
+                screenshot = self.capture_guest()
             self.record("FIXTURE_SETUP_FAILED_NOT_TEST_RESULT", failure_type=type(error).__name__,
                         stage=stage, simulator_screenshot=screenshot)
             raise

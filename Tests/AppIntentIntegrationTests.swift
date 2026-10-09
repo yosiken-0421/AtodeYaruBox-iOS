@@ -7,7 +7,7 @@ import UserNotifications
 final class AppIntentIntegrationTests: XCTestCase {
     @MainActor func testSaveIntentPersistsURLAndNoteForIndependentHostReader() async throws {
         let marker = "IntentQA-" + UUID().uuidString
-        var intent = SaveToBoxIntent()
+        let intent = SaveToBoxIntent()
         intent.title = marker
         intent.note = "あとで読む架空のページ"
         intent.url = "https://example.invalid/" + marker

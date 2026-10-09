@@ -42,11 +42,13 @@ class NativeFixtureTests(unittest.TestCase):
         self.calls.append(arguments)
         if arguments[:2] == ["xcrun", "swift"]:
             Path(arguments[-1]).write_bytes(b"mock-generated-fixture")
+        return subprocess.CompletedProcess(arguments, 0, stdout="Boot complete")
 
     def environment(self, state="Booted", run=None):
         from contextlib import ExitStack
         stack = ExitStack()
         stack.enter_context(patch.object(module.platform, "system", return_value="Darwin"))
+        stack.enter_context(patch.dict(module.os.environ, {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted"}))
         stack.enter_context(patch.object(module.subprocess, "check_output", return_value=self.inventory(state)))
         stack.enter_context(patch.object(module.subprocess, "run", side_effect=run or self.commands))
         return stack
@@ -93,12 +95,13 @@ class NativeFixtureTests(unittest.TestCase):
         self.assertEqual(self.calls[2][:4], ["xcrun", "simctl", "addmedia", UDID])
         self.assertClosed(address)
 
-    def testColdLibraryTimeoutStopsOnceAndDoesNotStartSafariFixture(self):
+    def testColdLibraryTimeoutStopsAfterOneRecoveryAndDoesNotStartSafariFixture(self):
         def timeout_import(arguments, **kwargs):
-            self.commands(arguments, **kwargs)
+            result = self.commands(arguments, **kwargs)
             if "addmedia" in arguments:
                 self.assertEqual(kwargs["timeout"], 180)
                 raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
+            return result
         with self.environment(run=timeout_import):
             with self.assertRaises(subprocess.TimeoutExpired):
                 with module.NativeQAFixtures(self.root, UDID):
@@ -106,7 +109,87 @@ class NativeFixtureTests(unittest.TestCase):
         evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
         self.assertEqual(evidence["status"], "FIXTURE_SETUP_FAILED_NOT_TEST_RESULT")
         self.assertEqual(evidence["stage"], "import_synthetic_image")
+        self.assertEqual(sum("addmedia" in command for command in self.calls), 2)
+        self.assertEqual(sum("shutdown" in command for command in self.calls), 1)
+        self.assertEqual(evidence["photo_import_attempts"], 2)
+        self.assertEqual(evidence["initial_photo_import_failure"], "TimeoutExpired")
+        self.assertFalse(any("erase" in command or "all" in command for command in self.calls))
+
+    def testTimedOutPhotoImportCanRecoverOnlyTheValidatedSyntheticGuest(self):
+        attempts = 0
+        def first_timeout(arguments, **kwargs):
+            nonlocal attempts
+            result = self.commands(arguments, **kwargs)
+            if "addmedia" in arguments:
+                attempts += 1
+                if attempts == 1:
+                    raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
+            return result
+        with self.environment(run=first_timeout):
+            with module.NativeQAFixtures(self.root, UDID) as fixture:
+                address = fixture.environment["TEST_RUNNER_ATODE_QA_LOOPBACK_URL"]
+                evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
+                self.assertEqual(evidence["status"], "FIXTURES_READY_NOT_TEST_RESULT")
+                self.assertEqual(evidence["photo_recovery_stage"], "completed")
+                self.assertEqual(evidence["photo_import_attempts"], 2)
+                self.assertEqual(evidence["initial_photo_import_failure"], "TimeoutExpired")
+        for command in self.calls:
+            if command[:2] == ["xcrun", "simctl"]:
+                self.assertIn(UDID, command)
+                self.assertNotIn("all", command)
+                self.assertNotIn("erase", command)
+        self.assertEqual(sum("launch" in command for command in self.calls), 1)
+        self.assertClosed(address)
+
+    def testRecoveryMigrationFailureWithExitZeroCannotImportOrClaimReadiness(self):
+        def failed_migration(arguments, **kwargs):
+            result = self.commands(arguments, **kwargs)
+            if "addmedia" in arguments:
+                raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
+            if "bootstatus" in arguments:
+                return subprocess.CompletedProcess(arguments, 0, stdout="Data Migration Failed")
+            return result
+        with self.environment(run=failed_migration):
+            with self.assertRaisesRegex(RuntimeError, "migration failed"):
+                with module.NativeQAFixtures(self.root, UDID):
+                    self.fail("An invalid recovered guest was accepted")
+        evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
+        self.assertEqual(evidence["status"], "FIXTURE_SETUP_FAILED_NOT_TEST_RESULT")
+        self.assertEqual(evidence["photo_recovery_stage"], "bootstatus")
         self.assertEqual(sum("addmedia" in command for command in self.calls), 1)
+
+    def testRecoveryShutdownFailureCannotRetryImportOrClaimReadiness(self):
+        def failed_shutdown(arguments, **kwargs):
+            result = self.commands(arguments, **kwargs)
+            if "addmedia" in arguments:
+                raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
+            if "shutdown" in arguments:
+                raise subprocess.CalledProcessError(1, arguments)
+            return result
+        with self.environment(run=failed_shutdown):
+            with self.assertRaises(subprocess.CalledProcessError):
+                with module.NativeQAFixtures(self.root, UDID):
+                    self.fail("Failed recovery was accepted")
+        evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
+        self.assertEqual(evidence["status"], "FIXTURE_SETUP_FAILED_NOT_TEST_RESULT")
+        self.assertEqual(evidence["photo_recovery_stage"], "shutdown")
+        self.assertEqual(sum("addmedia" in command for command in self.calls), 1)
+
+    def testRecoveryNeverRestartsALocalOrSelfHostedSimulator(self):
+        def timeout_import(arguments, **kwargs):
+            result = self.commands(arguments, **kwargs)
+            if "addmedia" in arguments:
+                raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
+            return result
+        with self.environment(run=timeout_import), patch.dict(module.os.environ, {"RUNNER_ENVIRONMENT": "self-hosted"}):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                with module.NativeQAFixtures(self.root, UDID):
+                    self.fail("Local Simulator recovery was permitted")
+        evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
+        self.assertEqual(evidence["status"], "FIXTURE_SETUP_FAILED_NOT_TEST_RESULT")
+        self.assertEqual(evidence["photo_recovery_stage"], "not_permitted_outside_hosted_ci")
+        self.assertEqual(sum("addmedia" in command for command in self.calls), 1)
+        self.assertFalse(any("shutdown" in command or "boot" in command for command in self.calls))
 
     def testMissingGeneratedImageFailsBeforeAddingMedia(self):
         with self.environment(run=lambda *args, **kwargs: None):
