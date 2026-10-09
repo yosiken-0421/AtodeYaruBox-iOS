@@ -21,7 +21,7 @@ struct SearchTextField: UIViewRepresentable {
         field.adjustsFontForContentSizeCategory = true
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         field.accessibilityIdentifier = "searchField"
-        field.accessibilityLabel = "検索する言葉"
+        field.accessibilityLabel = "検索"
         field.accessibilityHint = "タイトル・メモ・読み取った文字を探します"
         return field
     }
@@ -34,7 +34,7 @@ struct SearchTextField: UIViewRepresentable {
         field.font = font
         field.textColor = .label
         field.backgroundColor = .systemBackground
-        field.attributedPlaceholder = NSAttributedString(string: "検索する言葉",
+        field.attributedPlaceholder = NSAttributedString(string: "検索",
             attributes: [.font: font, .foregroundColor: UIColor.label])
         if field.text != text { field.text = text }
         if !isFocused && field.isFirstResponder { field.resignFirstResponder() }

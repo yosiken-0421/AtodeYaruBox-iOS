@@ -77,6 +77,12 @@ final class ExternalInputFlowTests: XCTestCase {
         reveal(date, in: app)
         XCTAssertEqual(date.value as? String, "1", "OCR must propose the date printed on the selected fixture")
         date.tap() // This flow verifies photo input; notification permission is tested separately.
+        if date.value as? String == "1" {
+            // A wide SwiftUI switch row can expose a label-inclusive frame.
+            // Tap the actual trailing switch if the row's center was just a label.
+            date.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        }
+        XCTAssertEqual(date.value as? String, "0", "Turning off the detected date must keep it off")
         app.buttons["toolbarSaveButton"].tap()
         search(app, query: "PHOTO123")
         let saved = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Return deadline")).firstMatch
@@ -164,11 +170,22 @@ final class ExternalInputFlowTests: XCTestCase {
         field.tap()
         if let old = field.value as? String { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count)) }
         field.typeText(title)
-        safari.buttons["箱に保存"].tap()
+        XCTAssertEqual(field.value as? String, title, "The edited title must be reflected before saving")
+        attachment(safari, name: "SafariSharedTitleReadyToSave")
+        let save = safari.buttons["shareToolbarSaveButton"]
+        XCTAssertTrue(save.isEnabled && save.isHittable)
+        save.tap()
+        let finished = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: save)
+        let saveResult = XCTWaiter.wait(for: [finished], timeout: 10)
+        attachment(safari, name: "SafariAfterSave")
+        XCTAssertEqual(saveResult, .completed, "SHARE_SAVE_DID_NOT_FINISH; " + controls(safari))
         let app = host()
         search(app, query: title)
-        XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 10))
-        app.staticTexts[title].tap()
+        let saved = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
+        let imported = saved.waitForExistence(timeout: 10)
+        attachment(app, name: "SafariSharedItemSearchResult")
+        XCTAssertTrue(imported, "SHARED_TITLE_NOT_SEARCHABLE; " + controls(app))
+        saved.tap()
         XCTAssertTrue(app.buttons["確認しました"].waitForExistence(timeout: 5))
         let address = try XCTUnwrap(ProcessInfo.processInfo.environment["ATODE_QA_LOOPBACK_URL"])
         XCTAssertTrue(app.staticTexts[address].exists)

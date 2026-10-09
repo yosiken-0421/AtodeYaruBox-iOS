@@ -12,7 +12,9 @@ struct ItemCard: View {
         VStack(alignment: .leading, spacing: 12) {
             Button { showingDetail = true } label: {
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: item.actionType.symbol).font(.title2).foregroundStyle(Color.boxAccent).accessibilityHidden(true)
+                    if !typeSize.isAccessibilitySize {
+                        Image(systemName: item.actionType.symbol).font(.title2).foregroundStyle(Color.boxAccent).accessibilityHidden(true)
+                    }
                     VStack(alignment: .leading, spacing: 6) {
                         Text(item.title).font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
                         Label(item.actionType.label, systemImage: item.actionType.symbol).font(.subheadline)

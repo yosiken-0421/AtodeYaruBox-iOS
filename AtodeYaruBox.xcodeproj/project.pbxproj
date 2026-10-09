@@ -173,6 +173,7 @@
 			"isa" = "PBXGroup";
 			"name" = "App";
 			"children" = (
+				"B5EB8441A9004EE92E701B38",
 				"A8973EC6CD23EE60648820AC",
 				"035ED61046EBBC0B8F295847",
 				"410CEA3C0F590BAACEA05A5A",
@@ -188,6 +189,7 @@
 				"B2BA7A63971E6DB6558715CD",
 				"BAFC27CD8E34AC6F7E5925DE",
 				"8FA1A2C3F5157A637B2A31D0",
+				"5D9DF1A6D9A1935A4A313158",
 				"2F12E3BAA8A0D8F3305F74A7",
 				"E98EB488CC0CDB853840529E",
 				"36AAA8F0F0F46B98F159E638",
@@ -211,6 +213,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = (
+				"40C59E8A5457205E2CFFA0C5",
 				"7B9E3B48F94AC1C00B04DA5A",
 				"70A38FFBFC9441C4A694BF08",
 				"3D54D182DA3012D5E48BEA61",
@@ -226,6 +229,7 @@
 				"39CB7CEFBC90AAB615F42C40",
 				"873CDC41B503A48906BD0DA9",
 				"F9DC003BD711BD4B53DFB57E",
+				"6431E79515A8B92EFFFAAD55",
 				"F98C0109A85103436EB1EA24",
 				"597AF0AC3DE340430C2E05E2",
 				"6797EA7072F3EFC1C544EFEE",
@@ -515,6 +519,10 @@
 			"lastKnownFileType" = "sourcecode.swift";
 			"path" = "Widgets/BoxWidgets.swift";
 			"sourceTree" = "<group>";
+		};
+		"40C59E8A5457205E2CFFA0C5" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "B5EB8441A9004EE92E701B38";
 		};
 		"410CEA3C0F590BAACEA05A5A" = {
 			"isa" = "PBXFileReference";
@@ -844,6 +852,12 @@
 			"path" = "Config/Shared.entitlements";
 			"sourceTree" = "<group>";
 		};
+		"5D9DF1A6D9A1935A4A313158" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AtodeYaruBox/Views/CustomSnoozeSheet.swift";
+			"sourceTree" = "<group>";
+		};
 		"5F8B5C3BFED7EEE6FC0B5DF3" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "F22C4A840B5AD006B9FFA19A";
@@ -873,6 +887,10 @@
 			);
 			"defaultConfigurationIsVisible" = 0;
 			"defaultConfigurationName" = "Release";
+		};
+		"6431E79515A8B92EFFFAAD55" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "5D9DF1A6D9A1935A4A313158";
 		};
 		"644723B5880C8684B4485ECD" = {
 			"isa" = "PBXSourcesBuildPhase";
@@ -1482,6 +1500,12 @@
 		"B5E060735525CEFF06E6ADD2" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "1FE555595245136CEE200ECD";
+		};
+		"B5EB8441A9004EE92E701B38" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AtodeYaruBox/App/AppAppearance.swift";
+			"sourceTree" = "<group>";
 		};
 		"B698A7B0C8013DFE9808E83F" = {
 			"isa" = "PBXBuildFile";

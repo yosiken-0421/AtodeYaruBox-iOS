@@ -27,6 +27,12 @@ private struct ShareSaveView: View {
     @State private var saved = false
     @State private var importFailed = false
     @State private var errorMessage: String?
+    private enum Field: Hashable { case title(Int), note(Int) }
+    @FocusState private var focusedField: Field?
+    private var cannotSave: Bool {
+        loading || saving || importFailed || drafts.isEmpty
+            || drafts.contains { $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
     var body: some View {
         NavigationStack {
             Form {
@@ -34,39 +40,36 @@ private struct ShareSaveView: View {
                 ForEach(drafts.indices, id: \.self) { index in
                     Section("保存する内容 \(index + 1)") {
                         TextField("タイトル", text: $drafts[index].title, axis: .vertical)
+                            .focused($focusedField, equals: .title(index))
                             .accessibilityIdentifier(index == 0 ? "sharedTitleField" : "sharedTitleField_\(index)")
                         TextField("メモ", text: $drafts[index].note, axis: .vertical).lineLimit(2...6)
+                            .focused($focusedField, equals: .note(index))
                         Picker("種類", selection: $drafts[index].action) {
                             ForEach(ActionType.allCases) { action in Text(action.label).tag(action) }
                         }
                     }
                 }
-                if let errorMessage { Section { Label(errorMessage, systemImage: "exclamationmark.triangle") } }
+                if let errorMessage { Section { Label(errorMessage, systemImage: "exclamationmark.triangle").accessibilityIdentifier("shareImportError") } }
                 Section {
-                    Button {
-                        saving = true
-                        do {
-                            let store = try SharedStore.container(requireGroup: true)
-                            store.mainContext.autosaveEnabled = false
-                            let items = try drafts.map { try ShareImportService.item(from: $0) }
-                            for item in items { store.mainContext.insert(item) }
-                            try store.mainContext.save()
-                            saved = true
-                            if let all = try? InboxRepository(context: store.mainContext).all() {
-                                try? WidgetSnapshotService.write(items: all)
-                            }
-                            context?.completeRequest(returningItems: nil, completionHandler: nil)
-                        } catch { errorMessage = error.localizedDescription; saving = false }
-                    } label: { Label("箱に保存", systemImage: "tray.and.arrow.down").frame(maxWidth: .infinity, minHeight: 44) }
-                        .buttonStyle(.borderedProminent).tint(.boxButton).disabled(loading || saving || importFailed || drafts.isEmpty || drafts.contains { $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+                    Button(action: saveDrafts) {
+                        Label("箱に保存", systemImage: "tray.and.arrow.down").frame(maxWidth: .infinity, minHeight: 44)
+                    }.buttonStyle(.borderedProminent).tint(.boxButton).disabled(cannotSave)
                     Text("共有した項目は「確認待ち」に入ります。日時の設定は、箱で内容を確認してから行えます。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("あとでやる箱").navigationBarTitleDisplayMode(.inline)
-            .toolbar { Button("キャンセル") {
-                context?.cancelRequest(withError: NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError))
-            }.disabled(saving) }
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") {
+                        context?.cancelRequest(withError: NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError))
+                    }.disabled(saving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存", action: saveDrafts).disabled(cannotSave).accessibilityIdentifier("shareToolbarSaveButton")
+                }
+            }
         }
         .tint(.boxAccent)
         .task {
@@ -86,5 +89,23 @@ private struct ShareSaveView: View {
         .onDisappear {
             if !saved { for draft in drafts { if let asset = draft.asset { AssetStore.remove(asset) } } }
         }
+    }
+
+    private func saveDrafts() {
+        guard !cannotSave else { return }
+        focusedField = nil
+        saving = true
+        do {
+            let store = try SharedStore.container(requireGroup: true)
+            store.mainContext.autosaveEnabled = false
+            let items = try drafts.map { try ShareImportService.item(from: $0) }
+            for item in items { store.mainContext.insert(item) }
+            try store.mainContext.save()
+            saved = true
+            if let all = try? InboxRepository(context: store.mainContext).all() {
+                try? WidgetSnapshotService.write(items: all)
+            }
+            context?.completeRequest(returningItems: nil, completionHandler: nil)
+        } catch { errorMessage = error.localizedDescription; saving = false }
     }
 }

@@ -11,7 +11,7 @@ struct BoxView: View {
         TimelineView(.periodic(from: .now, by: 60)) { timeline in
             let openItems = items.filter { $0.status.isOpen }
             List {
-                if typeSize.isAccessibilitySize {
+                if typeSize.isAccessibilitySize && openItems.isEmpty {
                     BoxActionButton(title: "追加", symbol: "plus", identifier: "addButton") {
                         session.showingComposer = true
                     }
@@ -40,6 +40,11 @@ struct BoxView: View {
                             Label("\(section.label) · \(group.count)", systemImage: section.symbol)
                                 .foregroundStyle(section == .overdue ? Color.red : Color.primary)
                         }
+                    }
+                }
+                if typeSize.isAccessibilitySize && !openItems.isEmpty {
+                    BoxActionButton(title: "追加", symbol: "plus", identifier: "addButton") {
+                        session.showingComposer = true
                     }
                 }
             }

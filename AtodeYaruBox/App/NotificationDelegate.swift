@@ -6,6 +6,7 @@ final class NotificationDelegate: NSObject, UIApplicationDelegate, UNUserNotific
     static weak var session: AppSession?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        AppAppearance.configure()
         NotificationScheduler.registerActions()
         UNUserNotificationCenter.current().delegate = self
         return true

@@ -6,6 +6,7 @@ struct SnoozeSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var customDate = Date().addingTimeInterval(3600)
     @State private var isWorking = false
+    @State private var showingCustomDate = false
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         NavigationStack {
@@ -30,18 +31,25 @@ struct SnoozeSheet: View {
                         }.buttonStyle(.plain).accessibilityIdentifier("snooze_\(option.rawValue)")
                     }
                 }
-                Section("日時指定") {
-                    DatePicker("日時", selection: $customDate, in: Date()..., displayedComponents: [.date, .hourAndMinute])
-                    Button { postpone(customDate) } label: { Label("この日時にする", systemImage: "calendar") }
-                        .frame(minHeight: 44)
+                Section {
+                    BoxActionButton(title: "日時を指定", symbol: "calendar", identifier: "customSnoozeDateButton") {
+                        showingCustomDate = true
+                    }
                 }
             }
             .disabled(isWorking)
             .navigationTitle(typeSize.isAccessibilitySize ? "" : "あとで")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar(typeSize.isAccessibilitySize ? .hidden : .visible, for: .navigationBar)
             .toolbar { ToolbarItem(placement: .cancellationAction) {
                 if !typeSize.isAccessibilitySize { Button("閉じる") { dismiss() }.font(.body) }
             } }
+            .sheet(isPresented: $showingCustomDate) {
+                CustomSnoozeSheet(date: $customDate) { date in
+                    showingCustomDate = false
+                    postpone(date)
+                }
+            }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)

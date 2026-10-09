@@ -10,7 +10,6 @@ struct NotificationModeSheet: View {
             List {
                 Section {
                     BoxStatusText(text: "通知の知らせ方", headline: true, identifier: "reminderModeSheetTitle", textStyle: .title2)
-                    BoxStatusText(text: "新しく保存する項目の知らせ方を選びます。", identifier: "reminderModeExplanation")
                 }
                 Section {
                     BoxStatusText(text: "知らせ方", headline: true, identifier: "reminderModeChoicesHeading")
@@ -26,6 +25,7 @@ struct NotificationModeSheet: View {
                     }
                 }
                 Section {
+                    BoxStatusText(text: "新しく保存する項目の知らせ方を選びます。", identifier: "reminderModeExplanation")
                     BoxStatusText(text: "集中モードやiPhoneの通知設定により、通知が遅れることがあります。",
                         identifier: "reminderModeSystemNotice")
                     BoxActionButton(title: "閉じる", symbol: "xmark", identifier: "reminderModeCloseButton") { dismiss() }

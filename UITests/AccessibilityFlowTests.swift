@@ -73,7 +73,7 @@ final class AccessibilityFlowTests: XCTestCase {
         reveal(selector, in: app)
         selector.tap()
         let normal = app.buttons["reminderModeChoice_normal"]
-        XCTAssertTrue(normal.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["reminderModeSheetTitle"].waitForExistence(timeout: 5))
         audit(app, name: name + "-NotificationModes")
         reveal(normal, in: app)
         normal.tap()
@@ -123,6 +123,15 @@ final class AccessibilityFlowTests: XCTestCase {
         app.buttons["snoozeButton"].firstMatch.tap()
         XCTAssertTrue(app.buttons["snooze_hour"].waitForExistence(timeout: 5))
         audit(app, name: "LargestText-Snooze")
+        let custom = app.buttons["customSnoozeDateButton"]
+        reveal(custom, in: app)
+        custom.tap()
+        XCTAssertTrue(app.staticTexts["customSnoozeHeading"].waitForExistence(timeout: 5))
+        audit(app, name: "LargestText-CustomDate")
+        let closeCustom = app.buttons["customSnoozeCloseButton"]
+        reveal(closeCustom, in: app)
+        closeCustom.tap()
+        reveal(app.buttons["snooze_hour"], in: app)
         app.buttons["snooze_hour"].tap()
         let complete = app.buttons["completeButton"].firstMatch
         XCTAssertTrue(complete.waitForExistence(timeout: 5))
