@@ -94,11 +94,9 @@ class NativeQAFixtures:
                            cwd=self.root, check=True, timeout=180)
             if not image.is_file() or image.stat().st_size == 0:
                 raise RuntimeError("Synthetic photo generator did not create the fixture")
-            # A newly booted hosted Simulator has not initialized its Photos
-            # library yet. Start the stock app on this selected guest only.
-            stage = "initialize_photos"
-            subprocess.run(["xcrun", "simctl", "launch", self.udid, "com.apple.mobileslideshow"],
-                           cwd=self.root, check=True, timeout=60)
+            # simctl imports into the selected booted guest's media library.
+            # Opening the stock Photos UI first is unnecessary and can stall
+            # on a cold hosted guest before the actual image import starts.
             stage = "import_synthetic_image"
             self.import_synthetic_photo(image)
             stage = "start_loopback_fixture"

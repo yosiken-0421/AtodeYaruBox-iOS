@@ -91,8 +91,8 @@ class NativeFixtureTests(unittest.TestCase):
                 evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
                 self.assertEqual(evidence["status"], "FIXTURES_READY_NOT_TEST_RESULT")
                 self.assertFalse(evidence["uses_personal_data"])
-        self.assertEqual(self.calls[1], ["xcrun", "simctl", "launch", UDID, "com.apple.mobileslideshow"])
-        self.assertEqual(self.calls[2][:4], ["xcrun", "simctl", "addmedia", UDID])
+        self.assertEqual(self.calls[1][:4], ["xcrun", "simctl", "addmedia", UDID])
+        self.assertFalse(any("launch" in command for command in self.calls))
         self.assertClosed(address)
 
     def testColdLibraryTimeoutStopsAfterOneRecoveryAndDoesNotStartSafariFixture(self):
@@ -138,7 +138,7 @@ class NativeFixtureTests(unittest.TestCase):
                 self.assertIn(UDID, command)
                 self.assertNotIn("all", command)
                 self.assertNotIn("erase", command)
-        self.assertEqual(sum("launch" in command for command in self.calls), 1)
+        self.assertFalse(any("launch" in command for command in self.calls))
         self.assertClosed(address)
 
     def testRecoveryMigrationFailureWithExitZeroCannotImportOrClaimReadiness(self):
