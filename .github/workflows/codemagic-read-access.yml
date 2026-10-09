@@ -1,6 +1,6 @@
 {
   "name": "Read approved Codemagic app metadata",
-  "on": {"workflow_dispatch": {}},
+  "on": {"workflow_dispatch": {"inputs": {"mode": {"type": "choice", "default": "app", "options": ["app", "integration"]}}}},
   "permissions": {"contents": "read"},
   "concurrency": {"group": "codemagic-read-access", "cancel-in-progress": false},
   "jobs": {
@@ -15,17 +15,24 @@
         },
         {
           "name": "Check request scope, redirects and secret-safe reporting",
-          "run": "python3 -m unittest tools.tests.test_codemagic_read_access -v"
+          "run": "python3 -m unittest tools.tests.test_codemagic_read_access tools.tests.test_codemagic_integration_read -v"
         },
         {
           "name": "Read only the existing approved application's metadata",
+          "if": "${{ inputs.mode == 'app' }}",
           "env": {"CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"},
           "run": "python3 tools/codemagic_read_access.py"
         },
         {
+          "name": "Compare only the approved app's owner context and saved Apple alias",
+          "if": "${{ inputs.mode == 'integration' }}",
+          "env": {"CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"},
+          "run": "python3 -m tools.codemagic_integration_read"
+        },
+        {
           "name": "Show sanitized access result",
           "if": "always()",
-          "run": "python3 -c \"from pathlib import Path; p=Path('artifacts/codemagic-read-access.json'); print(p.read_text() if p.exists() else 'NO_ACCESS_REPORT')\""
+          "run": "python3 -c \"from pathlib import Path; [print(p.read_text()) for p in (Path('artifacts/codemagic-read-access.json'), Path('artifacts/codemagic-integration-read.json')) if p.exists()]\""
         }
       ]
     }

@@ -1,5 +1,9 @@
 # Codemagicへの読み取り接続
 
+2026-10-10：暗号化されたActions secretの保存と、既存アプリのGETによる認証成功を確認しました。[実行記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/37976837550)。Appleの認証や署名の成功とは区別します。秘密値・任意の応答テキストは保存しません。
+
+手動確認に `integration` モードを追加しました。既知のアプリ（必要な場合のみ既知の失敗ビルド）から所有アカウントを検証してから、本人の接続設定と当該アプリの所属先の接続設定を読みます。保存された `AtodeYaruBox-CI` の完全一致・空白等を除いた一致だけをbooleanで比較し、名前・メール・所属ID・Apple Key ID・秘密値は結果に残しません。どの処理もGETのみです。アプリの所属が不明なまま別のTeamへ問い合わせず、他アプリの取得や設定変更、Mac実行、署名、配布は行いません。現在のCodemagic公開Webアプリにある `/user`、`/team/:id`、`/builds/:id` のGETと所有先による参照切替を根拠とし、実APIの応答が検証できない場合は成功にしません。補助22件が成功しました。
+
 現在のiOS検証済みソースは `300dc7f`、Unit 76/UI 10の全86件が成功。API接続の追加はSwift・Xcode構成・iOSテストを変更しません。
 
 AppleのキーをCodemagicへ保存する接続と、AIの実行環境からCodemagicを読む接続は別です。後者のために、本人のCodemagic API tokenをGitHubのこのリポジトリのActions secret `CODEMAGIC_API_TOKEN`へ直接保存します。本人のアカウント全体に対応する認証情報なので、このアプリの確認以外の用途へ転用しません。チャット、ソース、ログ、公開ファイルへ送らず、既存トークンのRevokeはしません。
