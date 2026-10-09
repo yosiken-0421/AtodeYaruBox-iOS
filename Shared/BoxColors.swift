@@ -113,6 +113,9 @@ struct BoxStatusText: UIViewRepresentable {
     let text: String
     var headline = false
     let identifier: String
+    var textStyle: UIFont.TextStyle? = nil
+    var centered = false
+    var background: UIColor = .secondarySystemGroupedBackground
 
     func makeUIView(context: Context) -> UILabel {
         let label = UILabel()
@@ -127,10 +130,15 @@ struct BoxStatusText: UIViewRepresentable {
     func updateUIView(_ label: UILabel, context: Context) {
         let category = BoxTypography.category(context.environment.dynamicTypeSize)
         let traits = label.traitCollection.modifyingTraits { $0.preferredContentSizeCategory = category }
-        label.font = UIFont.preferredFont(forTextStyle: headline ? .headline : .body, compatibleWith: traits)
+        let font = UIFont.preferredFont(forTextStyle: textStyle ?? (headline ? .headline : .body), compatibleWith: traits)
+        if headline, let descriptor = font.fontDescriptor.withSymbolicTraits(.traitBold) {
+            label.font = UIFont(descriptor: descriptor, size: font.pointSize)
+        } else { label.font = font }
         label.text = text
+        label.textAlignment = centered ? .center : .natural
         label.textColor = .label
-        label.backgroundColor = .secondarySystemGroupedBackground
+        label.backgroundColor = background
+        label.accessibilityTraits = headline ? [.staticText, .header] : .staticText
         label.accessibilityIdentifier = identifier
         label.accessibilityLabel = text
         label.invalidateIntrinsicContentSize()

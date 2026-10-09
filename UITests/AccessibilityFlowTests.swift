@@ -44,6 +44,16 @@ final class AccessibilityFlowTests: XCTestCase {
         }
     }
 
+    @MainActor private func selectTab(_ app: XCUIApplication, label: String) {
+        let tab = app.tabBars.buttons[label]
+        tab.tap()
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            tab.isSelected && app.navigationBars[label].exists
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed,
+            "The selected screen must be visible before its accessibility audit")
+    }
+
     @MainActor private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
         // A system audit can leave a scrolling form at a different position.
         // Look in both directions, rather than assuming every control is below.
@@ -83,7 +93,7 @@ final class AccessibilityFlowTests: XCTestCase {
     @MainActor func testAllTabsAccessibilityInLightMode() throws {
         let app = launch()
         for tab in ["箱", "今日", "探す", "設定"] {
-            app.tabBars.buttons[tab].tap()
+            selectTab(app, label: tab)
             audit(app, name: "Light-" + tab)
         }
         verifyNotificationSettings(app, name: "Light")
@@ -92,7 +102,7 @@ final class AccessibilityFlowTests: XCTestCase {
     @MainActor func testAllTabsAccessibilityInDarkMode() throws {
         let app = launch(dark: true)
         for tab in ["箱", "今日", "探す", "設定"] {
-            app.tabBars.buttons[tab].tap()
+            selectTab(app, label: tab)
             audit(app, name: "Dark-" + tab)
         }
         verifyNotificationSettings(app, name: "Dark")

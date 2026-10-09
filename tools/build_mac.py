@@ -106,8 +106,9 @@ def main(scope="all", simulator_signing=False, external_input_qa=False):
             else:
                 base.append("CODE_SIGNING_ALLOWED=NO")
             result["stage"] = "build"
+            result["build_action"] = "build" if scope == "build" else "build-for-testing"
             write_result(result)
-            code = run(base + ["build"], "build")
+            code = run(base + [result["build_action"]], "build")
             result["build_exit_code"] = code
             result["build"] = "PASS" if code == 0 else "FAIL"
             if code != 0:
@@ -119,7 +120,7 @@ def main(scope="all", simulator_signing=False, external_input_qa=False):
                 result["stage"] = "tests"
                 result["result_bundle"] = "Tests-" + stamp + ".xcresult"
                 write_result(result)
-                arguments = base + ["test", "-parallel-testing-enabled", "NO",
+                arguments = base + ["test-without-building", "-parallel-testing-enabled", "NO",
                     "-resultBundlePath", str(ARTIFACTS / result["result_bundle"])]
                 if scope == "unit":
                     arguments += ["-only-testing:AtodeYaruBoxTests"]

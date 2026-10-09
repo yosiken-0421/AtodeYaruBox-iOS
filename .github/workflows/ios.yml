@@ -59,7 +59,7 @@
         }
       ],
       "env": {
-        "DEVELOPER_DIR": "/Applications/Xcode_16.4.app/Contents/Developer",
+        "DEVELOPER_DIR": "/Applications/Xcode_26.3.app/Contents/Developer",
         "ATODE_QA_IOS_RUNTIME": "18.5"
       }
     }

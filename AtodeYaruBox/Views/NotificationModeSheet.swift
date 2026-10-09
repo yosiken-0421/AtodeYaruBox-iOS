@@ -3,11 +3,13 @@ import SwiftUI
 struct NotificationModeSheet: View {
     @Binding var selectedRawValue: String
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
+                    BoxStatusText(text: "通知の知らせ方", headline: true, identifier: "reminderModeSheetTitle", textStyle: .title2)
                     BoxStatusText(text: "新しく保存する項目の知らせ方を選びます。", identifier: "reminderModeExplanation")
                 }
                 Section {
@@ -28,7 +30,9 @@ struct NotificationModeSheet: View {
                         identifier: "reminderModeSystemNotice")
                     BoxActionButton(title: "閉じる", symbol: "xmark", identifier: "reminderModeCloseButton") { dismiss() }
                 }
-            }.font(.body).foregroundStyle(Color.primary).navigationTitle("通知の知らせ方")
+            }.font(.body).foregroundStyle(Color.primary)
+                .navigationTitle(typeSize.isAccessibilitySize ? "" : "通知")
+                .navigationBarTitleDisplayMode(.inline)
         }.tint(.boxAccent)
     }
 }

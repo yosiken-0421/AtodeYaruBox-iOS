@@ -15,13 +15,9 @@ struct SearchView: View {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("検索", systemImage: "magnifyingglass").font(.headline).foregroundStyle(Color.primary)
-                    TextField("検索する言葉", text: $query,
-                        prompt: Text("検索する言葉").foregroundStyle(Color.primary))
-                        .font(.body).foregroundStyle(Color.primary).textFieldStyle(.roundedBorder)
-                        .autocorrectionDisabled().textInputAutocapitalization(.never)
-                        .focused(searchFocus).submitLabel(.search)
-                        .onSubmit { submitSearch() }
-                        .frame(minHeight: 44).accessibilityIdentifier("searchField")
+                    SearchTextField(text: $query, isFocused: Binding(
+                        get: { searchFocus.wrappedValue }, set: { searchFocus.wrappedValue = $0 }),
+                        submit: submitSearch)
                     BoxActionButton(title: "検索する", symbol: "magnifyingglass", identifier: "searchSubmitButton",
                         hint: "入力した言葉で探し、キーボードを閉じます") { submitSearch() }
                 }
@@ -31,7 +27,7 @@ struct SearchView: View {
                     ForEach(SearchFilter.allCases) { filter in Text(filter.label).tag(filter) }
                 }.accessibilityIdentifier("searchFilter")
             }
-            Section("\(results.count)件") {
+            Section {
                 if results.isEmpty {
                     EmptyBoxState(title: "項目がありません", symbol: "magnifyingglass",
                         message: appliedQuery.isEmpty ? "保存した内容を、タイトル・メモ・読み取った文字から探せます。" : "言葉や絞り込みを変えて、もう一度探してみましょう。")
@@ -40,6 +36,8 @@ struct SearchView: View {
                         ItemCard(item: item, complete: { session.complete(item) }, snooze: { snoozing = item })
                     }
                 }
+            } header: {
+                BoxStatusText(text: "\(results.count)件", identifier: "searchResultCount", background: .clear)
             }
         }
         .navigationTitle("探す")

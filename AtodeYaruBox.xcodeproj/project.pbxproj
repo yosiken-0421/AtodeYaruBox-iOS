@@ -186,6 +186,7 @@
 				"21D9203CA3B4AF10F5B95E78",
 				"3CA97BD797C8653784052808",
 				"B2BA7A63971E6DB6558715CD",
+				"BAFC27CD8E34AC6F7E5925DE",
 				"8FA1A2C3F5157A637B2A31D0",
 				"2F12E3BAA8A0D8F3305F74A7",
 				"E98EB488CC0CDB853840529E",
@@ -223,6 +224,7 @@
 				"2D16DE206DABF76BDEA92007",
 				"A5F6A4F81878E4D44DA46AFE",
 				"39CB7CEFBC90AAB615F42C40",
+				"873CDC41B503A48906BD0DA9",
 				"F9DC003BD711BD4B53DFB57E",
 				"F98C0109A85103436EB1EA24",
 				"597AF0AC3DE340430C2E05E2",
@@ -1049,6 +1051,10 @@
 			"path" = "Tests/AnalysisTests.swift";
 			"sourceTree" = "<group>";
 		};
+		"873CDC41B503A48906BD0DA9" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BAFC27CD8E34AC6F7E5925DE";
+		};
 		"88230300FB02600BC708C9A5" = {
 			"isa" = "XCBuildConfiguration";
 			"baseConfigurationReference" = "9788083BD201345E7D7C8B3C";
@@ -1508,6 +1514,12 @@
 		"B98ACC2123AD7154EFA30F77" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "8BB814F4FC1510289E7C2800";
+		};
+		"BAFC27CD8E34AC6F7E5925DE" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AtodeYaruBox/Views/Components/SearchTextField.swift";
+			"sourceTree" = "<group>";
 		};
 		"BBF949DD702B35EB1B2A1C48" = {
 			"isa" = "PBXBuildFile";

@@ -106,14 +106,18 @@ class BuildResultTests(unittest.TestCase):
         self.assertEqual(self.result()["tests"], "NOT_RUN")
         self.assertEqual(len(self.commands), 3)
         self.assertIn("generic/platform=iOS Simulator", self.commands[-1])
+        self.assertEqual(self.commands[-1][-1], "build")
 
     def testUnitScopeAndAllScopeChooseCorrectTests(self):
         self.assertEqual(self.run_pipeline("unit"), 0)
+        self.assertEqual(self.commands[2][-1], "build-for-testing")
+        self.assertIn("test-without-building", self.commands[-1])
         self.assertIn("-only-testing:AtodeYaruBoxTests", self.commands[-1])
         self.assertIn("platform=iOS Simulator,id=TEST-UDID", self.commands[-1])
         self.assertEqual(self.run_pipeline("all"), 0)
         self.assertFalse(any(value.startswith("-only-testing:") for value in self.commands[-1]))
         self.assertEqual(self.result()["tests"], "PASS")
+        self.assertEqual(self.result()["build_action"], "build-for-testing")
 
     def testAdHocSigningIsLimitedToSimulatorAndDoesNotRequestProvisioning(self):
         self.assertEqual(self.run_pipeline(simulator_signing=True), 0)

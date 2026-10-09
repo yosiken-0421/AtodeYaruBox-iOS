@@ -65,9 +65,9 @@ struct EmptyBoxState: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: symbol).font(.largeTitle).foregroundStyle(Color.boxAccent).accessibilityHidden(true)
-            Text(title).font(.title2.bold()).fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
-            Text(message).font(.body).fixedSize(horizontal: false, vertical: true)
+            BoxStatusText(text: title, headline: true, identifier: "emptyStateTitle",
+                textStyle: .title2, centered: true, background: .clear)
+            BoxStatusText(text: message, identifier: "emptyStateMessage", centered: true, background: .clear)
         }
         .foregroundStyle(.primary).multilineTextAlignment(.center)
         .frame(maxWidth: .infinity).padding(.vertical, 24)

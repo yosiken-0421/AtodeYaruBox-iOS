@@ -56,9 +56,9 @@ class ExternalQABuildTests(unittest.TestCase):
     def pipeline(self, scope="all", signing=True, build_exit=0, test_exit=0, fixture=None, fail_launch=False):
         def execute(arguments, log_name, environment=None):
             self.calls.append((arguments, environment))
-            if fail_launch and "test" in arguments:
+            if fail_launch and "test-without-building" in arguments:
                 raise FileNotFoundError("Mock test executable missing")
-            return (test_exit if "test" in arguments else build_exit if "build" in arguments else 0), ""
+            return (test_exit if "test-without-building" in arguments else build_exit if "build-for-testing" in arguments else 0), ""
         with patch.object(module.platform, "system", return_value="Darwin"), \
              patch.object(module.shutil, "which", return_value="/usr/bin/xcodebuild"), \
              patch.object(module, "generate", lambda: None), \
@@ -76,6 +76,8 @@ class ExternalQABuildTests(unittest.TestCase):
 
     def testOnlyTestProcessReceivesFixtureEnvironmentAndContextCloses(self):
         self.assertEqual(self.pipeline(), 0)
+        self.assertEqual(self.calls[2][0][-1], "build-for-testing")
+        self.assertIn("test-without-building", self.calls[-1][0])
         self.assertTrue(all(environment is None for _, environment in self.calls[:-1]))
         self.assertEqual(self.calls[-1][1], self.environment)
         self.assertEqual(self.fixture_events, ["entered", "closed"])

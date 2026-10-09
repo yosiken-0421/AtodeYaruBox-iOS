@@ -128,13 +128,28 @@ final class ExternalInputFlowTests: XCTestCase {
             "SAFARI_SHARE_ITEM_NOT_FOUND; menu=" + menuLabel + "; " + controls(safari))
         guard let share = shareCandidate(safari) else { return }
         share.tap()
-        let target = safari.buttons["あとでやる箱"]
-        if !target.waitForExistence(timeout: 5) {
-            let more = safari.buttons.matching(NSPredicate(format: "label == %@ OR label == %@ OR label == %@", "More", "その他", "その他…")).firstMatch
-            XCTAssertTrue(more.waitForExistence(timeout: 5), "Installed share extension not present in the actual share sheet")
+        let targetPredicate = NSPredicate(format: "label BEGINSWITH %@", "あとでやる箱")
+        let morePredicate = NSPredicate(format: "label BEGINSWITH[c] %@ OR label BEGINSWITH %@", "More", "その他")
+        let sheetReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            self.activityCandidate(safari, matching: targetPredicate) != nil
+                || self.activityCandidate(safari, matching: morePredicate) != nil
+        }, object: safari)
+        let sheetResult = XCTWaiter.wait(for: [sheetReady], timeout: 8)
+        attachment(safari, name: "ActualSafariShareSheetBeforeSelection")
+        XCTAssertEqual(sheetResult, .completed, "SAFARI_ACTIVITY_SHEET_NOT_READY; " + controls(safari))
+        if activityCandidate(safari, matching: targetPredicate) == nil {
+            let more = activityCandidate(safari, matching: morePredicate)
+            XCTAssertNotNil(more, "SHARE_EXTENSION_AND_MORE_NOT_VISIBLE; " + controls(safari))
+            guard let more else { return }
             more.tap()
         }
-        XCTAssertTrue(target.waitForExistence(timeout: 10))
+        let targetReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            self.activityCandidate(safari, matching: targetPredicate) != nil
+        }, object: safari)
+        let targetResult = XCTWaiter.wait(for: [targetReady], timeout: 10)
+        attachment(safari, name: "ActualSafariShareActivities")
+        XCTAssertEqual(targetResult, .completed, "INSTALLED_SHARE_EXTENSION_NOT_AVAILABLE; " + controls(safari))
+        guard let target = activityCandidate(safari, matching: targetPredicate) else { return }
         target.tap()
         XCTAssertTrue(safari.buttons["箱に保存"].waitForExistence(timeout: 15))
         attachment(safari, name: "ActualSafariShareExtension")
@@ -189,6 +204,18 @@ final class ExternalInputFlowTests: XCTestCase {
         for surface in foregroundSurfaces(app) {
             for query in [surface.buttons.matching(predicate), surface.menuItems.matching(predicate),
                           surface.staticTexts.matching(predicate), surface.cells.matching(predicate)] {
+                if let element = query.allElementsBoundByAccessibilityElement.first(where: { $0.exists && $0.isHittable }) { return element }
+            }
+        }
+        return nil
+    }
+
+    @MainActor private func activityCandidate(_ app: XCUIApplication, matching predicate: NSPredicate) -> XCUIElement? {
+        // iOS can expose an activity as a cell or text inside the system sheet,
+        // and the localized More label can include an ellipsis.
+        for surface in foregroundSurfaces(app) {
+            for query in [surface.buttons.matching(predicate), surface.cells.matching(predicate),
+                          surface.staticTexts.matching(predicate)] {
                 if let element = query.allElementsBoundByAccessibilityElement.first(where: { $0.exists && $0.isHittable }) { return element }
             }
         }

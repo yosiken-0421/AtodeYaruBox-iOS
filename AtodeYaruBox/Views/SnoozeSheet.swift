@@ -11,9 +11,10 @@ struct SnoozeSheet: View {
         NavigationStack {
             List {
                 if typeSize.isAccessibilitySize {
+                    BoxStatusText(text: "あとで", headline: true, identifier: "snoozeSheetTitle", textStyle: .title2)
                     BoxActionButton(title: "閉じる", symbol: "xmark", identifier: "closeSnoozeButton") { dismiss() }
                 }
-                Section { Text(item.title).font(.headline).fixedSize(horizontal: false, vertical: true) }
+                Section { BoxStatusText(text: item.title, headline: true, identifier: "snoozeItemTitle") }
                 Section {
                     BoxStatusText(text: "いつ知らせますか？", headline: true, identifier: "snoozeChoicesHeading")
                     ForEach(SnoozeOption.allCases) { option in
@@ -36,7 +37,7 @@ struct SnoozeSheet: View {
                 }
             }
             .disabled(isWorking)
-            .navigationTitle("あとで")
+            .navigationTitle(typeSize.isAccessibilitySize ? "" : "あとで")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) {
                 if !typeSize.isAccessibilitySize { Button("閉じる") { dismiss() }.font(.body) }
