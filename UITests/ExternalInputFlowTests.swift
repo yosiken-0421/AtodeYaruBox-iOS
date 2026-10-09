@@ -89,6 +89,10 @@ final class ExternalInputFlowTests: XCTestCase {
         XCTAssertTrue(saved.waitForExistence(timeout: 10))
         app.buttons["detailButton"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["返品"].waitForExistence(timeout: 5), "The selected screenshot must retain its detected action after saving")
+        let edit = app.buttons["editItemButton"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 5))
+        XCTAssertEqual(edit.label, "編集")
+        XCTAssertGreaterThanOrEqual(edit.frame.height, 44)
         attachment(app, name: "PhotoOCRSavedAndSearchable")
     }
 

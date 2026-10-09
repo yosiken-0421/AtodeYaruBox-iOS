@@ -14,6 +14,7 @@ struct ItemDetailView: View {
         List {
             Section {
                 Text(item.title).font(.title2.bold()).fixedSize(horizontal: false, vertical: true)
+                BoxActionButton(title: "編集", symbol: "pencil", identifier: "editItemButton") { showingEdit = true }
                 Label(item.actionType.label, systemImage: item.actionType.symbol)
                 if let date = item.dueDate { LabeledContent("日時") { Text(date, format: .dateTime.year().month().day().hour().minute()) } }
                 if item.status == .inbox {
@@ -108,7 +109,6 @@ struct ItemDetailView: View {
             }
         }
         .navigationTitle("詳細").navigationBarTitleDisplayMode(.inline)
-        .toolbar { Button { showingEdit = true } label: { Label("編集", systemImage: "pencil").labelStyle(.titleAndIcon) } }
         .sheet(isPresented: $showingSnooze) { SnoozeSheet(item: item) }
         .sheet(isPresented: $showingEdit) { NavigationStack { EditItemView(item: item) } }
         .sheet(isPresented: $showingLocation) { NavigationStack { LocationReminderView(item: item) } }

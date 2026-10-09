@@ -80,5 +80,6 @@ final class NotificationIntegrationTests: XCTestCase {
         XCTAssertEqual(category.actions.map(\.identifier), [NotificationScheduler.completeAction,
             NotificationScheduler.hourAction, NotificationScheduler.tomorrowAction])
         XCTAssertEqual(category.actions.map(\.title), ["完了", "1時間後", "明日"])
+        XCTAssertTrue(category.actions.allSatisfy { $0.options.contains(.authenticationRequired) })
     }
 }

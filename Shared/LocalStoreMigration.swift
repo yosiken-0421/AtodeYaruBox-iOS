@@ -50,7 +50,7 @@ enum LocalStoreMigration {
             let values = try oldURL.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
             guard values.isRegularFile == true, values.isSymbolicLink != true else { throw AppError.invalidFile }
             guard (values.fileSize ?? AssetStore.maximumBytes + 1) <= AssetStore.maximumBytes else { throw AppError.fileTooLarge }
-            let bytes = try Data(contentsOf: oldURL)
+            let bytes = try BoundedFileReader.read(oldURL, maximumBytes: AssetStore.maximumBytes)
             guard bytes.count <= AssetStore.maximumBytes else { throw AppError.fileTooLarge }
             try manager.createDirectory(at: newURL.deletingLastPathComponent(), withIntermediateDirectories: true,
                 attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])

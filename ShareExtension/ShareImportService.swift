@@ -109,7 +109,7 @@ enum ShareImportService {
     nonisolated private static func readLimited(_ url: URL) throws -> Data {
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? AssetStore.maximumBytes + 1
         guard size <= AssetStore.maximumBytes else { throw AppError.fileTooLarge }
-        return try Data(contentsOf: url)
+        return try BoundedFileReader.read(url, maximumBytes: AssetStore.maximumBytes)
     }
     private static func fileDraft(bytes: Data, type: UTType, title: String) async throws -> ShareDraft {
         let asset = try AssetStore.save(bytes, type: type, requireGroup: true)

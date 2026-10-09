@@ -12,7 +12,7 @@ else:
 def main(scope="all", simulator_signing=False, external_input_qa=False):
     result = build(scope, simulator_signing=simulator_signing, external_input_qa=external_input_qa)
     try:
-        report = inspect(ROOT, 69, 9)
+        report = inspect(ROOT, 76, 10)
         (ROOT / "artifacts/native-acceptance.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         junit(report, ROOT / "artifacts/native-tests.xml")

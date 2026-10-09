@@ -9,6 +9,10 @@ struct AtodeYaruBoxApp: App {
     @State private var startupError: String?
 
     init() {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--ui-testing"), arguments.contains("--qa-onboarding") {
+            UserDefaults.standard.removeObject(forKey: "hasFinishedOnboarding")
+        }
         do {
             let newSession = AppSession(container: try SharedStore.container(inMemory: ProcessInfo.processInfo.arguments.contains("--ui-testing")))
             _session = State(initialValue: newSession)

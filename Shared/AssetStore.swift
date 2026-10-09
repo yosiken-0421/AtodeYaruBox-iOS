@@ -56,7 +56,7 @@ enum AssetStore {
         let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .contentTypeKey])
         guard values.isRegularFile == true else { throw AppError.invalidFile }
         guard (values.fileSize ?? maximumBytes + 1) <= maximumBytes else { throw AppError.fileTooLarge }
-        return try save(Data(contentsOf: url), type: values.contentType ?? UTType(filenameExtension: url.pathExtension) ?? .data,
+        return try save(BoundedFileReader.read(url, maximumBytes: AssetStore.maximumBytes), type: values.contentType ?? UTType(filenameExtension: url.pathExtension) ?? .data,
                         requireGroup: requireGroup)
     }
 

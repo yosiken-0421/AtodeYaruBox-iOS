@@ -2,6 +2,7 @@ import Foundation
 import AppIntents
 
 struct SaveToBoxIntent: AppIntent {
+    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
     static var title: LocalizedStringResource = "あとでやる箱へ保存"
     static var description = IntentDescription("メモやWebページを箱に保存します。外部への送信は行いません。")
     @Parameter(title: "タイトル") var title: String
@@ -41,6 +42,7 @@ struct NewMemoIntent: AppIntent {
 }
 
 struct NextItemIntent: AppIntent {
+    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
     static var title: LocalizedStringResource = "次の項目"
     @MainActor func perform() async throws -> some IntentResult & ProvidesDialog {
         let container = try SharedStore.container(requireGroup: true)
@@ -52,6 +54,7 @@ struct NextItemIntent: AppIntent {
 }
 
 struct CompleteItemIntent: AppIntent {
+    static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
     static var title: LocalizedStringResource = "項目を完了"
     @Parameter(title: "項目ID") var itemID: String
     init() {}

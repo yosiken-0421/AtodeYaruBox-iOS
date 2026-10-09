@@ -38,7 +38,8 @@ def execute(arguments, log_name, environment=None):
 
 def write_result(result):
     # Replace an old PASS before preflight; a crash cannot leave a stale success.
-    path = ARTIFACTS / "ios-build-result.json"
+    name = "ios-release-build-result.json" if result.get("configuration") == "Release" else "ios-build-result.json"
+    path = ARTIFACTS / name
     temporary = path.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(path)
@@ -52,9 +53,9 @@ def external_fixtures(udid):
     return NativeQAFixtures(ROOT, udid)
 
 
-def main(scope="all", simulator_signing=False, external_input_qa=False):
+def main(scope="all", simulator_signing=False, external_input_qa=False, configuration="Debug"):
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    result = {"build": "NOT_RUN", "tests": "NOT_RUN", "scope": scope,
+    result = {"build": "NOT_RUN", "tests": "NOT_RUN", "scope": scope, "configuration": configuration,
               "stage": "preflight", "started_at": datetime.now(timezone.utc).isoformat(),
               "finished_at": None, "build_exit_code": None, "test_exit_code": None,
               "warnings": [], "errors": [], "logs": [], "result_bundle": None,
@@ -67,7 +68,7 @@ def main(scope="all", simulator_signing=False, external_input_qa=False):
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
 
     def run(arguments, name, environment=None):
-        log_name = name + "-" + stamp + ".log"
+        log_name = configuration.lower() + "-" + name + "-" + stamp + ".log"
         result["logs"].append(log_name)
         code, output = (execute(arguments, log_name) if environment is None
                         else execute(arguments, log_name, environment=environment))
@@ -75,6 +76,8 @@ def main(scope="all", simulator_signing=False, external_input_qa=False):
         return code
 
     try:
+        if configuration not in {"Debug", "Release"} or (configuration == "Release" and scope != "build"):
+            raise ValueError("Release verification is a separate Simulator build; full XCTest acceptance uses Debug")
         if scope not in {"build", "unit", "all"}:
             raise ValueError("Unknown test scope")
         if external_input_qa and (scope != "all" or not simulator_signing):
@@ -96,8 +99,8 @@ def main(scope="all", simulator_signing=False, external_input_qa=False):
             else:
                 result["simulator"] = "Generic Simulator build"
             base = ["xcodebuild", "-project", "AtodeYaruBox.xcodeproj", "-scheme", "AtodeYaruBox",
-                    "-configuration", "Debug", "-destination", destination,
-                    "-derivedDataPath", str(ROOT / "DerivedData")]
+                    "-configuration", configuration, "-destination", destination,
+                    "-derivedDataPath", str(ROOT / ("DerivedDataRelease" if configuration == "Release" else "DerivedData"))]
             if simulator_signing:
                 # This destination is always a Simulator. No developer identity,
                 # provisioning service, certificate or physical-device signing.
@@ -195,5 +198,6 @@ if __name__ == "__main__":
     parser.add_argument("--scope", choices=["build", "unit", "all"], default="all")
     parser.add_argument("--simulator-signing", action="store_true")
     parser.add_argument("--external-input-qa", action="store_true")
+    parser.add_argument("--configuration", choices=["Debug", "Release"], default="Debug")
     args = parser.parse_args()
-    sys.exit(main(args.scope, args.simulator_signing, args.external_input_qa))
+    sys.exit(main(args.scope, args.simulator_signing, args.external_input_qa, args.configuration))

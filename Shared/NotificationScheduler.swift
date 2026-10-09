@@ -13,9 +13,9 @@ final class NotificationScheduler {
 
     static func registerActions() {
         let actions = [
-            UNNotificationAction(identifier: completeAction, title: "完了", options: []),
-            UNNotificationAction(identifier: hourAction, title: "1時間後", options: []),
-            UNNotificationAction(identifier: tomorrowAction, title: "明日", options: [])
+            UNNotificationAction(identifier: completeAction, title: "完了", options: [.authenticationRequired]),
+            UNNotificationAction(identifier: hourAction, title: "1時間後", options: [.authenticationRequired]),
+            UNNotificationAction(identifier: tomorrowAction, title: "明日", options: [.authenticationRequired])
         ]
         UNUserNotificationCenter.current().setNotificationCategories([
             UNNotificationCategory(identifier: categoryID, actions: actions, intentIdentifiers: [], options: [])

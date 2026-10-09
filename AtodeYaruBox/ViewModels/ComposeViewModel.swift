@@ -71,7 +71,7 @@ final class ComposeViewModel {
             let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? AssetStore.maximumBytes + 1
             guard size <= AssetStore.maximumBytes else { throw AppError.fileTooLarge }
             let type = UTType(filenameExtension: url.pathExtension) ?? .data
-            await importData(try Data(contentsOf: url), type: type, source: type.conforms(to: .pdf) ? .pdf : .file)
+            await importData(try BoundedFileReader.read(url, maximumBytes: AssetStore.maximumBytes), type: type, source: type.conforms(to: .pdf) ? .pdf : .file)
             if title == "ファイルから保存", automaticTitle == title {
                 title = url.deletingPathExtension().lastPathComponent
                 automaticTitle = title
