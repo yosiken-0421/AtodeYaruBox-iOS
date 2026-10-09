@@ -20,15 +20,8 @@ struct SnoozeSheet: View {
                     BoxStatusText(text: "いつ知らせますか？", headline: true, identifier: "snoozeChoicesHeading")
                     ForEach(SnoozeOption.allCases) { option in
                         let date = SnoozeCalculator.date(for: option)
-                        Button { postpone(date) } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Label(option.label, systemImage: "clock").font(.body)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                Text(date, format: .dateTime.month().day().hour().minute()).font(.body).foregroundStyle(.primary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                                .foregroundStyle(.primary).contentShape(Rectangle())
-                        }.buttonStyle(.plain).accessibilityIdentifier("snooze_\(option.rawValue)")
+                        BoxActionButton(title: option.label + "\n" + date.formatted(.dateTime.month().day().hour().minute()),
+                            symbol: "clock", identifier: "snooze_\(option.rawValue)") { postpone(date) }
                     }
                 }
                 Section {
@@ -52,7 +45,7 @@ struct SnoozeSheet: View {
             }
         }
         .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
+        .presentationDragIndicator(.hidden)
     }
     private func postpone(_ date: Date) {
         isWorking = true
