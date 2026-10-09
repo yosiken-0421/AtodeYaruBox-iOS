@@ -49,6 +49,17 @@ def alias_metadata(context):
         name = normalized[0]["name"]
         if len(name) <= 64 and all(ord(char) >= 32 for char in name):
             result["normalized_alias_codepoints"] = [ord(char) for char in name]
+        # Capability metadata only: never return field values or arbitrary keys.
+        allowed_fields = ("id", "_id", "keyId", "key_id", "keyIdentifier", "key_identifier",
+                          "issuerId", "issuer_id", "apiKey", "api_key", "privateKey", "private_key",
+                          "key", "value", "encryptedKey", "encrypted_key", "filePath", "file_path")
+        entry = normalized[0]
+        result["known_key_metadata_fields"] = [field for field in allowed_fields if field in entry]
+        result["stored_private_key_available"] = any(
+            isinstance(entry.get(field), str) and 128 <= len(entry[field]) <= 16384
+            and entry[field].strip().startswith("-----BEGIN PRIVATE KEY-----")
+            and entry[field].strip().endswith("-----END PRIVATE KEY-----")
+            for field in ("apiKey", "api_key", "privateKey", "private_key", "key", "value"))
     return result
 
 

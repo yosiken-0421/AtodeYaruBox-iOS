@@ -120,6 +120,15 @@ class Checks(unittest.TestCase):
                     "currentPeriod": {"buildTime": {"mac_mini_m2_free": 0}}}}}
             self.assertFalse(m.free_budget(user, [])["free_allowance_verified"])
 
+    def test_capability_metadata_cannot_return_key_contents(self):
+        fake = "-----BEGIN PRIVATE KEY-----\n" + "not-a-real-key" * 15 + "\n-----END PRIVATE KEY-----"
+        result = m.alias_metadata({"appStoreConnectIntegration": {"apiKeys": [{"name": m.ALIAS,
+            "private_key": fake, "secret-arbitrary-field": TOKEN}]}})
+        self.assertTrue(result["stored_private_key_available"])
+        self.assertEqual(result["known_key_metadata_fields"], ["private_key"])
+        self.assertNotIn(fake, json.dumps(result))
+        self.assertNotIn(TOKEN, json.dumps(result))
+
 
 if __name__ == "__main__":
     unittest.main()
