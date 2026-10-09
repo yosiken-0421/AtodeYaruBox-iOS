@@ -1,0 +1,17 @@
+{
+  "workflows": {
+    "atodeyarubox-signing-preflight": {
+      "name": "AtodeYaruBox Apple connection check (read only)",
+      "instance_type": "mac_mini_m2",
+      "max_build_duration": 5,
+      "integrations": {"app_store_connect": "AtodeYaruBox-CI"},
+      "scripts": [
+        {
+          "name": "Verify Apple API authentication without changing apps or certificates",
+          "script": "set -eu\npython3 -m venv \"$CM_BUILD_DIR/.venv-signing-check\"\n\"$CM_BUILD_DIR/.venv-signing-check/bin/python\" -m pip --isolated install --disable-pip-version-check --retries 1 --timeout 20 --index-url https://pypi.org/simple \"PyJWT[crypto]==2.15.1\"\n\"$CM_BUILD_DIR/.venv-signing-check/bin/python\" -m unittest tools.tests.test_apple_signing_preflight -v\n\"$CM_BUILD_DIR/.venv-signing-check/bin/python\" tools/apple_signing_preflight.py"
+        }
+      ],
+      "artifacts": ["artifacts/apple-signing-preflight.json"]
+    }
+  }
+}

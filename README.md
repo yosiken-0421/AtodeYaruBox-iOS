@@ -14,13 +14,19 @@ iOS 17以降。SwiftUI、SwiftData、Vision、UserNotifications、EventKit、Cor
 
 実機への署名・インストール・配布は未完了です。署名なしArchiveはインストール用ではなく、公開CIにはバイナリを保存していません。実機のWidget・Siri・位置通知・権限拒否の確認も残っています。クラウドAIとCloudKit同期は未実装・OFFです。
 
-コンパイラ警告とは別に、Debugのテスト用ターゲットのIntentメタデータ抽出省略1件と、Release Simulatorの署名済み拡張バイナリのstrip省略2件を記録しています。署名なしiPhone用Archiveの警告は0です。検証後のREADME更新は説明だけで、検証済みソース・テスト・設定を変更しません。
+コンパイラ警告とは別に、Debugのテスト用ターゲットのIntentメタデータ抽出省略1件と、Release Simulatorの署名済み拡張バイナリのstrip省略2件を記録しています。署名なしiPhone用Archiveの警告は0です。検証後の変更は説明、Git除外設定、CI用のApple接続確認だけで、Swiftソース・Xcode構成・iOSテストは検証済み版と同一です。
 
 ## 自動Build/Test
 
 GitHubの公開リポジトリで、標準のmacOS runnerを使います。全5ターゲットのBuildと全86件のUnit/UI Testを実行し、失敗・Skip・Swiftコンパイラ警告なしを必須にします。テストには生成した架空画像とlocalhostの一時ページを使用します。ログとスクリーンショットはその検証の記録です。ReleaseのSimulatorビルドは独立した証跡で検証します。合格後にiPhone用のRelease Archiveを署名なしでコンパイルし、本体・Share・Widgetの実製品を検証します。アプリのバイナリは公開しません。
 
 Simulator用アプリは実機へのインストール用ではありません。
+
+## Apple署名の接続準備
+
+`codemagic.yaml` は専用のApple接続確認です。自動トリガーや配布処理は含まず、無料枠と接続先を確認してから実行します。Codemagicの非公開Developer Portal統合 `AtodeYaruBox-CI` を参照し、秘密鍵をソースやログへ保存しません。CIだけで使うPyJWTは隔離した環境に導入し、iPhoneアプリの依存関係には追加しません。
+
+処理は本アプリの3つのBundle IDと配布証明書のメタデータをApple APIで読み取ります。短命の認証トークンはGETだけを許可し、アプリ・証明書の変更、署名、バイナリの送信は行いません。キー登録は本人の完了報告を受領していますが、Apple APIの実認証は未確認です。Windowsの補助テストはiOSの86件に合算しません。
 
 ## プライバシー
 

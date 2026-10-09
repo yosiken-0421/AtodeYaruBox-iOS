@@ -23,4 +23,5 @@ xcuserdata/
 !.env.example
 Secrets.xcconfig
 tools/.venv/
+.venv-signing-check/
 tools/vendor/
