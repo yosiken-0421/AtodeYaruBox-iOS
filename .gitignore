@@ -10,6 +10,14 @@ xcuserdata/
 *.mobileprovision
 *.p12
 *.pem
+*.p8
+*.pfx
+*.key
+*.cer
+*.der
+*.csr
+*.ipa
+*.xcarchive/
 .env
 .env.*
 !.env.example
