@@ -90,6 +90,14 @@ class Checks(unittest.TestCase):
         self.assertTrue(meta["expected_alias_normalized"])
         self.assertFalse(meta["expected_alias_exact"])
 
+    def test_only_proven_known_alias_spelling_is_returned(self):
+        for name in (" " + m.ALIAS + " ", "ＡｔｏｄｅＹａｒｕＢｏｘ－ＣＩ"):
+            result = m.alias_metadata({"appStoreConnectIntegration": {"apiKeys": [{"name": name}]}})
+            self.assertEqual("".join(map(chr, result["normalized_alias_codepoints"])), name)
+        for name in (TOKEN, m.ALIAS + "\n", " " * 65 + m.ALIAS):
+            result = m.alias_metadata({"appStoreConnectIntegration": {"apiKeys": [{"name": name}]}})
+            self.assertNotIn("normalized_alias_codepoints", result)
+
     def test_exception_data_never_printed(self):
         for error in (m.RefusedRedirect(), TimeoutError(TOKEN), RuntimeError(TOKEN),
                       urllib.error.HTTPError("https://example.com", 403, TOKEN, {}, io.BytesIO(TOKEN.encode()))):

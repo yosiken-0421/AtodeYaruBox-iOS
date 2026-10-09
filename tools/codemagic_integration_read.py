@@ -33,7 +33,7 @@ def alias_metadata(context):
     exact = [key for key in keys if isinstance(key, dict) and key.get("name") == ALIAS]
     normalized = [key for key in keys if isinstance(key, dict) and isinstance(key.get("name"), str)
                   and unicodedata.normalize("NFKC", key["name"]).strip() == ALIAS]
-    return {
+    result = {
         "integration_field_present": "appStoreConnectIntegration" in context,
         "integration_enabled_field_present": "isEnabled" in integration,
         "integration_enabled": integration.get("isEnabled") is True,
@@ -42,6 +42,13 @@ def alias_metadata(context):
         "expected_alias_ambiguous": len(exact) > 1 or len(normalized) > 1,
         "expected_key_identifier_present": len(exact) == 1 and bool(exact[0].get("keyId")),
     }
+    # Only a spelling already proven to normalize to this one known public alias
+    # may be returned. No arbitrary registration names or private key data.
+    if len(normalized) == 1:
+        name = normalized[0]["name"]
+        if len(name) <= 64 and all(ord(char) >= 32 for char in name):
+            result["normalized_alias_codepoints"] = [ord(char) for char in name]
+    return result
 
 
 def inspect(token, opener=None):
