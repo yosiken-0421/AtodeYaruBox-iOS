@@ -9,9 +9,9 @@ import urllib.request
 
 from tools.codemagic_read_access import APP_ID, NoRedirect, RefusedRedirect, write_report
 
-BUILD = "6ac9e0be2e8bb15cf3a7b9f8"
-COMMIT = "f00121300e7e3e135e72568bc6e994cbc648e15f"
-BRANCH = "codex/apple-ci-key-reference-2f5b2cf"
+BUILD = "6ac9e21c59e0a0dce277fdb3"
+COMMIT = "fbe3df5bbd697a763e3bc4a75707e6dabd427007"
+BRANCH = "codex/apple-read-scope-26e1387"
 API = "https://codemagic.io/api/v3/builds/" + BUILD
 NAME = "apple-signing-preflight.json"
 REPORT = Path("artifacts/codemagic-apple-evidence.json")
