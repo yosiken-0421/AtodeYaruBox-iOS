@@ -59,7 +59,7 @@ class RelatedReader:
             raise CheckError('INVENTORY_ROUTE_REFUSED')
         query = ({'fields[bundleIdCapabilities]': 'capabilityType,settings'}
                  if relationship == 'bundleIdCapabilities' else
-                 {'fields[profiles]': 'profileType,profileState,profileContent,expirationDate', 'limit': 200})
+                 {'fields[profiles]': 'name,profileType,profileState,profileContent,expirationDate', 'limit': 200})
         try:
             return self._read(identifier, relationship, query)
         except InventoryError as error:

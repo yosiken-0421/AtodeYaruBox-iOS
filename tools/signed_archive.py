@@ -143,6 +143,24 @@ def main():
         record()
         print(json.dumps(result))
         return 0 if result['status'] == 'SIGNING_INVENTORY_READ' else 1
+    if sys.argv[1:] == ['--prepare-distribution-profiles']:
+        from tools.apple_distribution_profiles import prepare_distribution
+        result.update(stage='profile_prepare', profiles_created_count=0)
+        def profile_checkpoint(stage):
+            result.update(stage='profile_prepare', apple_resources_modified=True)
+            if stage == 'PROFILE_CREATED':
+                result['profiles_created_count'] += 1
+            record()
+        try:
+            result.update(prepare_distribution(os.environ, profile_checkpoint))
+            result['status'] = 'DISTRIBUTION_PROFILES_VERIFIED'
+        except CheckError as error:
+            result.update(status='NOT_VERIFIED', diagnostic=str(error))
+        except Exception:
+            result.update(status='NOT_VERIFIED', diagnostic='PROFILE_PREPARATION_UNAVAILABLE')
+        record()
+        print(json.dumps(result))
+        return 0 if result['status'] == 'DISTRIBUTION_PROFILES_VERIFIED' else 1
     if sys.argv[1:]:
         result.update(status='NOT_VERIFIED', diagnostic='UNAPPROVED_SIGNING_MODE')
         record()

@@ -22,7 +22,7 @@ BOOLS = ('signed_archive_verified', 'signed_ipa_verified', 'apple_resources_modi
          'binary_uploaded', 'billing_modified', 'private_key_disclosed', 'native_tests_repeated',
          'all_three_bundle_ids_available', 'distribution_certificate_created',
          'matching_certificate_key_verified', 'team_identifier_verified')
-STAGES = {'preflight', 'inventory', 'BUNDLE_ID_POST_RESERVED', 'CERTIFICATE_POST_RESERVED', 'AUTOMATIC_SIGNING_RESERVED',
+STAGES = {'preflight', 'inventory', 'profile_prepare', 'BUNDLE_ID_POST_RESERVED', 'CERTIFICATE_POST_RESERVED', 'AUTOMATIC_SIGNING_RESERVED',
           'keychain_create', 'keychain_settings', 'keychain_unlock', 'keychain_read', 'keychain_search',
           'keychain_import', 'keychain_partition', 'archive', 'signature_verify', 'profile_decode',
           'entitlements_read', 'export', 'complete'}
@@ -40,12 +40,16 @@ DIAGNOSTICS = APPLE_DIAGNOSTICS | {
     'COMMAND_FAILED', 'PKCS12_COMPATIBILITY_REQUIRED', 'SIGNED_IPA_NOT_UNIQUE', 'SIGNED_IPA_SIZE_REFUSED', 'SIGNED_IPA_PATH_REFUSED',
     'UNEXPECTED_SIGNED_PACKAGE_FAILURE', 'INVENTORY_IDENTIFIER_MAP_INVALID', 'INVENTORY_ROUTE_REFUSED',
     'INVENTORY_RESPONSE_LIMIT', 'INVENTORY_READ_UNAVAILABLE', 'INVENTORY_PROFILE_DECODE_UNVERIFIED',
-    'INVENTORY_TASK_IDENTIFIER_MISSING', 'UNAPPROVED_SIGNING_MODE'}
+    'INVENTORY_TASK_IDENTIFIER_MISSING', 'UNAPPROVED_SIGNING_MODE', 'EXISTING_SIGNING_RESOURCES_REQUIRED',
+    'PROFILE_RESOURCE_ID_UNVERIFIED', 'PROFILE_ROUTE_REFUSED', 'PROFILE_ROUTE_OR_REPLAY_REFUSED',
+    'PROFILE_RESPONSE_LIMIT', 'PROFILE_CREATION_OUTCOME_UNVERIFIED', 'PROFILE_REQUEST_OUTCOME_UNAVAILABLE',
+    'APP_GROUP_PROFILE_ASSIGNMENT_REQUIRED', 'PROFILE_CERTIFICATE_MISMATCH', 'PROFILE_OWNED_MATCH_AMBIGUOUS',
+    'PROFILE_PREPARATION_UNAVAILABLE'}
 
 
 def sanitize(payload):
     if (not isinstance(payload, dict) or not isinstance(payload.get('status'), str)
-            or payload.get('status') not in {'NOT_RUN', 'NOT_VERIFIED', 'SIGNED_PACKAGE_VERIFIED', 'SIGNING_INVENTORY_READ'}
+            or payload.get('status') not in {'NOT_RUN', 'NOT_VERIFIED', 'SIGNED_PACKAGE_VERIFIED', 'SIGNING_INVENTORY_READ', 'DISTRIBUTION_PROFILES_VERIFIED'}
             or payload.get('verified_native_source') != NATIVE or not isinstance(payload.get('stage'), str)
             or payload.get('stage') not in STAGES):
         return None
@@ -80,6 +84,18 @@ def sanitize(payload):
                 or not isinstance(failure.get('parameter'), str) or failure['parameter'] not in PARAMETERS):
             return None
         result['inventory_failure'] = failure
+    for key in ('profiles_created_count', 'verified_distribution_profiles'):
+        if key in payload:
+            if type(payload[key]) is not int or not 0 <= payload[key] <= 3:
+                return None
+            result[key] = payload[key]
+    if 'distribution_profiles_verified' in payload:
+        if type(payload['distribution_profiles_verified']) is not bool:
+            return None
+        result['distribution_profiles_verified'] = payload['distribution_profiles_verified']
+    if payload['status'] == 'DISTRIBUTION_PROFILES_VERIFIED' and (payload['stage'] != 'profile_prepare'
+            or payload.get('distribution_profiles_verified') is not True or payload.get('verified_distribution_profiles') != 3):
+        return None
     if 'bundle_ids_created' in payload:
         created = payload['bundle_ids_created']
         if (not isinstance(created, list) or any(type(i) is not str or i not in IDS for i in created)

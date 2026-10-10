@@ -92,7 +92,7 @@ def load_key(value):
         raise CheckError('CERTIFICATE_KEY_INVALID') from None
 
 
-def prepare(environment, checkpoint=None):
+def prepare(environment, checkpoint=None, allow_create=True):
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.x509.oid import NameOID
@@ -106,6 +106,8 @@ def prepare(environment, checkpoint=None):
         entries = exact_bundle_rows(rows(client.request('/v1/bundleIds', query={'filter[identifier]': identifier,
                        'fields[bundleIds]': 'identifier,platform,seedId', 'limit': 200})), identifier)
         if not entries:
+            if not allow_create:
+                raise CheckError('EXISTING_SIGNING_RESOURCES_REQUIRED')
             created = client.request('/v1/bundleIds', 'POST', body=bundle_body(identifier)).get('data', {})
             if created.get('attributes', {}).get('identifier') != identifier:
                 raise CheckError('BUNDLE_CREATION_OUTCOME_UNVERIFIED')
@@ -126,6 +128,8 @@ def prepare(environment, checkpoint=None):
         raise CheckError('MATCHING_CERTIFICATE_AMBIGUOUS')
     certificate_created = False
     if not matching:
+        if not allow_create:
+            raise CheckError('EXISTING_SIGNING_RESOURCES_REQUIRED')
         if len(entries) >= 3:
             raise CheckError('DISTRIBUTION_CERTIFICATE_LIMIT_NO_REVOCATION')
         response = client.request('/v1/certificates', 'POST', body={'data': {'type': 'certificates',
