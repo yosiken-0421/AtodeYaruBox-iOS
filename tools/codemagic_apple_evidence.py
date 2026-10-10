@@ -126,7 +126,8 @@ def read_known_log(token, opener, download_opener):
     # storage hosts or redirects, and raw logs/download URLs are never reported.
     headers = {}
     if parsed.hostname == "api.codemagic.io":
-        if not (parsed.path.startswith("/logs/") or parsed.path.startswith("/builds/" + BUILD + "/logs/")):
+        artifact_log = parsed.path.startswith("/artifacts/") and parsed.path.endswith((".log", ".html", ".txt"))
+        if not (artifact_log or parsed.path.startswith("/logs/") or parsed.path.startswith("/builds/" + BUILD + "/logs/")):
             return {"log_diagnostic": "LOG_AUTH_SCOPE_REFUSED"}
         headers["x-auth-token"] = token.strip()
     reader = opener if headers else download_opener
