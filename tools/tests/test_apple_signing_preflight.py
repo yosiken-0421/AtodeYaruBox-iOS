@@ -1,5 +1,6 @@
 """Synthetic host checks, not Apple authentication or iOS XCTest results."""
 import io
+import base64
 import json
 from pathlib import Path
 import tempfile
@@ -15,7 +16,38 @@ class SigningPreflightTests(unittest.TestCase):
     def environment(self):
         return {'APP_STORE_CONNECT_KEY_IDENTIFIER': 'DEMO123456',
                 'APP_STORE_CONNECT_ISSUER_ID': '00000000-0000-0000-0000-000000000001',
-                'APP_STORE_CONNECT_PRIVATE_KEY': 'SYNTHETIC_SECRET_NEVER_PRINT'}
+                'APP_STORE_CONNECT_PRIVATE_KEY': '-----BEGIN PRIVATE KEY-----\nSYNTHETIC_SECRET_NEVER_PRINT\n-----END PRIVATE KEY-----'}
+
+    def test_normalization_preserves_pem_and_accepts_only_encoded_pem(self):
+        pem = self.environment()['APP_STORE_CONNECT_PRIVATE_KEY']
+        self.assertEqual(module.normalize_private_key('\ufeff' + pem.replace('\n', '\r\n') + '\n'), (pem, 'PEM'))
+        self.assertEqual(module.normalize_private_key(pem.replace('\n', '\\n')), (pem, 'ESCAPED_PEM'))
+        self.assertEqual(module.normalize_private_key(base64.b64encode(pem.encode()).decode()), (pem, 'BASE64_PEM'))
+
+    def test_malformed_key_is_refused_without_echoing_content(self):
+        for value in ('SYNTHETIC_SECRET_NEVER_PRINT', '<html>SYNTHETIC_SECRET_NEVER_PRINT</html>',
+                      base64.b64encode(b'SYNTHETIC_SECRET_NEVER_PRINT').decode(), 'x'*17000):
+            with self.assertRaisesRegex(module.CheckError, '^PRIVATE_KEY_FORMAT_INVALID$'):
+                module.normalize_private_key(value)
+
+    def test_outside_or_non_key_file_reference_is_refused(self):
+        for value in ('@file:/etc/passwd', '@file:/private/other.p8'):
+            with self.assertRaisesRegex(module.CheckError, '^PRIVATE_KEY_REFERENCE_REFUSED$'):
+                module.normalize_private_key(value)
+
+    def test_real_ephemeral_p256_signature_with_pinned_runtime(self):
+        import jwt
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives import serialization
+        key = ec.generate_private_key(ec.SECP256R1())
+        pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                serialization.NoEncryption()).decode()
+        for value in (pem, pem.strip().replace('\n', '\\n'), base64.b64encode(pem.encode()).decode()):
+            env = {**self.environment(), 'APP_STORE_CONNECT_PRIVATE_KEY': value}
+            token = module.token_from_environment(env)
+            payload = jwt.decode(token, key.public_key(), algorithms=['ES256'], audience='appstoreconnect-v1')
+            self.assertEqual(payload['exp'] - payload['iat'], 300)
+            self.assertEqual(payload['scope'], ['GET /v1/bundleIds', 'GET /v1/certificates'])
 
     def test_token_only_authorizes_gets_for_five_minutes(self):
         captured = {}

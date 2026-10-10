@@ -1,5 +1,6 @@
 """Read-only Apple API check; private keys and bearer tokens never leave memory."""
 from datetime import datetime, timezone
+import base64
 import json
 import os
 from pathlib import Path
@@ -26,6 +27,37 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise CheckError('REDIRECT_REFUSED')
 
 
+def normalize_private_key(value):
+    if not isinstance(value, str) or not value.strip() or len(value) > 16 * 1024:
+        raise CheckError('PRIVATE_KEY_FORMAT_INVALID')
+    key = value.lstrip('\ufeff').strip().replace('\r\n', '\n')
+    kind = 'PEM'
+    if key.startswith('@file:'):
+        candidate = Path(key[6:]).expanduser().resolve()
+        roots = [Path('/tmp').resolve(), ROOT.resolve()]
+        if (candidate.suffix.lower() != '.p8' or not any(candidate.is_relative_to(root) for root in roots)
+                or not candidate.is_file() or candidate.stat().st_size > 16 * 1024):
+            raise CheckError('PRIVATE_KEY_REFERENCE_REFUSED')
+        try:
+            key = candidate.read_text(encoding='utf-8-sig').strip().replace('\r\n', '\n')
+        except (OSError, UnicodeError):
+            raise CheckError('PRIVATE_KEY_REFERENCE_UNAVAILABLE') from None
+        kind = 'FILE_REFERENCE'
+    elif '\\n' in key and '\n' not in key and key.startswith('-----BEGIN PRIVATE KEY-----'):
+        key = key.replace('\\r\\n', '\n').replace('\\n', '\n')
+        kind = 'ESCAPED_PEM'
+    elif not key.startswith('-----BEGIN PRIVATE KEY-----'):
+        try:
+            key = base64.b64decode(key, validate=True).decode('utf-8').strip()
+        except (ValueError, UnicodeError):
+            raise CheckError('PRIVATE_KEY_FORMAT_INVALID') from None
+        kind = 'BASE64_PEM'
+    if (not key.startswith('-----BEGIN PRIVATE KEY-----\n') or not key.endswith('\n-----END PRIVATE KEY-----')
+            or len(key) > 16 * 1024):
+        raise CheckError('PRIVATE_KEY_FORMAT_INVALID')
+    return key, kind
+
+
 def token_from_environment(environment, encoder=None, now=None):
     names = ('APP_STORE_CONNECT_KEY_IDENTIFIER', 'APP_STORE_CONNECT_ISSUER_ID',
              'APP_STORE_CONNECT_PRIVATE_KEY')
@@ -40,6 +72,7 @@ def token_from_environment(environment, encoder=None, now=None):
         uuid.UUID(issuer)
     except (ValueError, AttributeError):
         raise CheckError('INTEGRATION_CREDENTIALS_INVALID') from None
+    private_key, key_kind = normalize_private_key(private_key)
     if encoder is None:
         try:
             import jwt
@@ -53,9 +86,16 @@ def token_from_environment(environment, encoder=None, now=None):
                         'scope': ['GET ' + route for route in ALLOWED_ROUTES]},
                        private_key, algorithm='ES256',
                        headers={'kid': key_id, 'typ': 'JWT'})
-    except Exception:
+    except Exception as error:
         # Signing libraries can include key contents in exceptions. Never emit them.
-        raise CheckError('JWT_SIGNING_FAILED') from None
+        failure = CheckError('JWT_SIGNING_FAILED')
+        failure.key_kind = key_kind
+        failure.signing_error_kind = {
+            'ValueError': 'VALUE_ERROR', 'InvalidKeyError': 'INVALID_KEY',
+            'UnsupportedAlgorithm': 'UNSUPPORTED_ALGORITHM', 'ImportError': 'IMPORT_ERROR',
+            'NotImplementedError': 'NOT_IMPLEMENTED',
+        }.get(type(error).__name__, 'UNKNOWN')
+        raise failure from None
 
 
 class AppleReader:
@@ -147,6 +187,10 @@ def main():
         code = 0
     except CheckError as error:
         report.update(status='NOT_VERIFIED', diagnostic=str(error))
+        if getattr(error, 'key_kind', None) in ('PEM', 'ESCAPED_PEM', 'BASE64_PEM', 'FILE_REFERENCE'):
+            report['private_key_input_format'] = error.key_kind
+        if getattr(error, 'signing_error_kind', None) in ('VALUE_ERROR', 'INVALID_KEY', 'UNSUPPORTED_ALGORITHM', 'IMPORT_ERROR', 'NOT_IMPLEMENTED', 'UNKNOWN'):
+            report['signing_error_kind'] = error.signing_error_kind
     except Exception:
         report.update(status='NOT_VERIFIED', diagnostic='UNEXPECTED_PREFLIGHT_FAILURE')
     record()

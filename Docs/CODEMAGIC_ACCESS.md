@@ -1,25 +1,19 @@
-# Codemagicへの読み取り接続
+# CodemagicとAppleへの接続確認
 
-通常の読み取りモードに加え、手動の `configure_alias` モードを用意しました。実アプリの本人所有・既知の保存名・有料契約なし・無料枠20分以上を再確認した場合に限り、このアプリだけの新しい変数グループ `atodeyarubox-apple-alias-d43f7c2` を作成し、既知の登録名を `ASC_KEY_ALIAS` という暗号化変数に保存します。保存内容は公開済みの参照名であり、Appleの秘密鍵は取得・使用しません。既存グループや変数を上書きせず、作成結果が不明でも自動でPOSTを繰り返しません。Team共有の変数・有料のadvanced security・課金設定・Appleのリソース・キー削除・ビルド開始は操作しません。仕様はCodemagicの公開OpenAPIにあるアプリの変数グループ作成とsecure=trueの変数登録を使用し、追加の補助7件が成功しました。
+GitHub Actions secret `CODEMAGIC_API_TOKEN` は保存済みで、対象アプリへのAPI認証は成功しています。同名secretの追加エラーは重複登録によるものです。削除や再入力は不要です。
 
-空白を含めた参照で行ったApple確認は、同じ参照名不明のエラーでスクリプト開始前に終了しました。元の保存名との差は実データで確認済みですが、ビルド側の修正だけで参照解決できたとは扱いません。公開Webアプリのキー操作には追加と削除だけがあり、名前変更は確認できていません。本人へ再操作を依頼する前に、対象登録の固定されたフィールド名と秘密鍵の利用可否だけをbooleanで確認します。秘密の内容は出力・保存せず、キーの追加・削除は行いません。
+対象は本人のPersonalアカウントにあるアプリ `6ac5b7b31811e71b67b38c2a` です。Apple接続名には先頭のASCII空白4文字がありました。このアプリだけの暗号化変数グループ `atodeyarubox-apple-alias-d43f7c2` に公開の参照名を `ASC_KEY_ALIAS` として保存し、既存のAppleキーを変更せず参照できました。[暗号化変数の確認](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38022644416)。
 
-保存名の取得結果で先頭のASCII空白4文字を確認しました。`codemagic.yaml` の参照値にそれを含め、キー自体を変更せず一致させます。Mac処理を開始する前に、Personalアカウントの現在の無料M2利用量と、当該アカウントのCI/CD有料subscriptionが有効でないことをGETで確認します。Codemagicの公開Webアプリではbilling.usage.freeLimit.buildTimeが無料秒数上限、currentPeriod.buildTime.mac_mini_m2_freeが消費秒数です。現在値が検証できなければ無料枠確認は成功にせず、古い画像を現在の残量として扱いません。
+2026-10-10の実Mac確認では、参照の解決、ソース取得、補助テスト13件が成功しました。その後、Appleへ通信する前のJWT署名で `JWT_SIGNING_FAILED` が発生しました。[秘密値を出さずに取得した診断](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38031399436)。Apple API認証やアプリ署名はまだ成功していません。
 
-2026-10-10：暗号化されたActions secretの保存と、既存アプリのGETによる認証成功を確認しました。[実行記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/37976837550)。Appleの認証や署名の成功とは区別します。秘密値・任意の応答テキストは保存しません。
+この失敗への修正として、PEM、改行をエスケープしたPEM、Base64で包んだPEM、許可された `.p8` ファイル参照の読み込みを追加しました。内容や例外の文章は出力せず、形式とエラー種別の固定コードだけを診断します。使い捨ての実P256キーによるJWTの署名・検証も含め、補助テスト61件が成功しました。これはAppleの実キーによる認証成功を意味しません。
 
-追加の[所属先・登録名の確認](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/37978005029)は成功。アプリは本人のPersonalアカウントに所属し、Apple接続は有効でした。保存名は `AtodeYaruBox-CI` と完全一致せず、Unicode表記の正規化と外側の空白除去を行うと一致します。所属の取り違えとは扱いません。既知のこの名前へ正規化できる唯一の保存名だけ、64文字以下・制御文字なしを条件に文字番号として取得し、ビルド側の参照を正確な保存名へ合わせます。任意の登録名、メール、所属ID、Key IDや秘密値は取得結果へ出しません。Appleキーの取消・再作成は不要です。
+Macでの再確認は最大5分の読み取り専用処理です。開始前に現在の無料M2残量、有料CI/CD契約が無効であること、本人の所有先を再取得します。無料枠が確認できない場合や20分未満の場合は開始しません。古い画像や過去の残量を現在の値として扱いません。
 
-手動確認に `integration` モードを追加しました。既知のアプリ（必要な場合のみ既知の失敗ビルド）から所有アカウントを検証してから、本人の接続設定と当該アプリの所属先の接続設定を読みます。保存された `AtodeYaruBox-CI` の完全一致・空白等を除いた一致だけをbooleanで比較し、名前・メール・所属ID・Apple Key ID・秘密値は結果に残しません。どの処理もGETのみです。アプリの所属が不明なまま別のTeamへ問い合わせず、他アプリの取得や設定変更、Mac実行、署名、配布は行いません。現在のCodemagic公開Webアプリにある `/user`、`/team/:id`、`/builds/:id` のGETと所有先による参照切替を根拠とし、実APIの応答が検証できない場合は成功にしません。補助22件が成功しました。
+Appleへの要求は、このアプリの3つのBundle IDと配布用証明書のGETだけです。Appleリソースの作成・取消、課金設定、バイナリの配布は含みません。秘密鍵はCodemagic上の署名処理内で使用し、チャット、Git、公開ログ、保存する診断へ出しません。
 
-現在のiOS検証済みソースは `300dc7f`、Unit 76/UI 10の全86件が成功。API接続の追加はSwift・Xcode構成・iOSテストを変更しません。
+手動の公開Ubuntuワークフローは `app`、`integration`、`verify_alias`、`apple_evidence` ではGETのみを使います。`configure_alias` は本人所有と無料枠を検証した場合だけ、当該アプリの新しい暗号化変数に公開の参照名を保存します。既存値の上書きや不明なPOST結果の自動再試行は行いません。APIトークン自体は個人アカウントに対応するため、コードの要求制限によってトークンの権限そのものが狭まるわけではありません。
 
-AppleのキーをCodemagicへ保存する接続と、AIの実行環境からCodemagicを読む接続は別です。後者のために、本人のCodemagic API tokenをGitHubのこのリポジトリのActions secret `CODEMAGIC_API_TOKEN`へ直接保存します。本人のアカウント全体に対応する認証情報なので、このアプリの確認以外の用途へ転用しません。チャット、ソース、ログ、公開ファイルへ送らず、既存トークンのRevokeはしません。
+実iOS検証済みソースは `300dc7f`、Unit 76件・UI 10件が成功しています。今回の接続修正はSwift・Xcode構成・iOSテストを変更しません。実機へのインストール、署名済みIPA、TestFlight送信は未完了です。
 
-準備した手動起動の `codemagic-read-access.yml` は、公開リポジトリのmainだけで動くUbuntuの3分上限の処理です。Mac実行やiOSビルドは開始しません。固定されたアプリ `6ac5b7b31811e71b67b38c2a` の `/apps/:id` へGETを1回行い、応答の任意の文章・名前・メール・環境変数・秘密値を保存せず、既知IDの一致と少数のbooleanだけを報告します。リダイレクト、巨大応答、未知のアプリIDでは成功しません。秘密値は当該ステップの環境からだけ取得します。
-
-APIでアプリを読めても、Appleの認証、保存済みintegrationの参照解決、署名の成功は別で、いずれも成功と報告しません。APIのアカウント権限は確認処理そのものより広く、このコードのGET制限はトークン自体の権限を狭めるものではありません。新しいジョブ起動、アプリ変更、他アプリ読取り、Team移動、課金設定、証明書取消、秘密鍵ダウンロード、バイナリ送信はこの確認に含めません。
-
-本人操作は、Codemagicの認証欄を開く工程と、GitHubの暗号化されたActions secretへの直接保存を一件ずつ案内します。現在の入口は[Account settings](https://codemagic.io/settings)のAPI token欄です。2026-10-10、一般公開されている現在のWebアプリのナビゲーション、/settingsへのルート、該当画面のAPI token表示を照合しました。メニューのSettingsはPersonal/Teamの設定へ移動するため、認証欄には直接URLを使います。本人画像ではPersonal account settingsにも、そのIntegrations内にもAPI tokenがなく、旧サンプルのIntegrations経路は現在の入口として使いません。本人のログイン済み端末での表示はまだ未確認です。Show/Revokeや秘密値のチャット送信は、入口の確認では依頼しません。保存後の存在確認と起動・結果確認はAIが行い、本人へテスト実行を依頼しません。保存したことをAPI認証の成功と混同しません。
-
-公式仕様：[Codemagic API認証](https://docs.codemagic.io/rest-api/codemagic-rest-api/)、[アプリ読取りAPI](https://docs.codemagic.io/rest-api/applications/)、[GitHub Actions secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)。
+公式仕様：[Codemagic API認証](https://docs.codemagic.io/rest-api/codemagic-rest-api/)、[アプリAPI](https://docs.codemagic.io/rest-api/applications/)、[App Store Connect連携](https://docs.codemagic.io/yaml-publishing/app-store-connect/)、[Codemagic CLIのキー参照](https://github.com/codemagic-ci-cd/cli-tools/blob/master/docs/app-store-connect/README.md)、[GitHub Actions secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)。

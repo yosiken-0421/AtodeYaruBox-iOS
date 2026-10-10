@@ -20,7 +20,8 @@ DIAGNOSTICS = {"INTEGRATION_CREDENTIALS_MISSING", "INTEGRATION_CREDENTIALS_INVAL
                "JWT_SIGNING_FAILED", "REDIRECT_REFUSED", "UNAPPROVED_ROUTE", "UNAPPROVED_IDENTIFIER",
                "UNAPPROVED_CERTIFICATE_QUERY", "RESPONSE_LIMIT_EXCEEDED", "APPLE_CONNECTION_FAILED",
                "APPLE_RESPONSE_INVALID", "PAGINATED_RESPONSE_REQUIRES_REVIEW", "BUNDLE_IDENTIFIER_AMBIGUOUS",
-               "CERTIFICATE_RESPONSE_INVALID", "UNEXPECTED_PREFLIGHT_FAILURE"}
+               "CERTIFICATE_RESPONSE_INVALID", "UNEXPECTED_PREFLIGHT_FAILURE", "PRIVATE_KEY_FORMAT_INVALID",
+               "PRIVATE_KEY_REFERENCE_REFUSED", "PRIVATE_KEY_REFERENCE_UNAVAILABLE"}
 
 
 def sanitize(payload):
@@ -33,6 +34,12 @@ def sanitize(payload):
         return None
     result = {k: payload[k] for k in ("status", "authentication_verified", "signed_build_ready",
         "apple_resources_modified", "binary_uploaded", "new_payment_enabled")}
+    for field, allowed in (("private_key_input_format", {"PEM", "ESCAPED_PEM", "BASE64_PEM", "FILE_REFERENCE"}),
+                           ("signing_error_kind", {"VALUE_ERROR", "INVALID_KEY", "UNSUPPORTED_ALGORITHM", "IMPORT_ERROR", "NOT_IMPLEMENTED", "UNKNOWN"})):
+        if field in payload:
+            if not isinstance(payload[field], str) or payload[field] not in allowed:
+                return None
+            result[field] = payload[field]
     diagnostic = payload.get("diagnostic")
     if diagnostic is not None:
         if diagnostic not in DIAGNOSTICS and (not isinstance(diagnostic, str) or not re.fullmatch(r"APPLE_HTTP_[1-5][0-9]{2}", diagnostic)):
