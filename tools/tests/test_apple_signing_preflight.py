@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import urllib.error
+import urllib.parse
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
@@ -57,7 +58,7 @@ class SigningPreflightTests(unittest.TestCase):
             token = module.token_from_environment(env)
             payload = jwt.decode(token, key.public_key(), algorithms=['ES256'], audience='appstoreconnect-v1')
             self.assertEqual(payload['exp'] - payload['iat'], 300)
-            self.assertEqual(payload['scope'], ['GET /v1/bundleIds', 'GET /v1/certificates'])
+            self.assertEqual(payload['scope'], module.approved_scope())
 
     def test_token_only_authorizes_gets_for_five_minutes(self):
         captured = {}
@@ -65,8 +66,16 @@ class SigningPreflightTests(unittest.TestCase):
             captured.update(payload=payload, key=key, options=options)
             return 'synthetic-token'
         module.token_from_environment(self.environment(), encoder, now=1000)
-        self.assertEqual(captured['payload']['scope'],
-                         ['GET /v1/bundleIds', 'GET /v1/certificates'])
+        actual = []
+        def getter(route, query):
+            actual.append('GET ' + route + '?' + urllib.parse.urlencode(query))
+            return {'data': []}
+        module.collect(getter)
+        self.assertEqual(captured['payload']['scope'], actual)
+        self.assertEqual(len(actual), 4)
+        self.assertTrue(all(method.startswith('GET /v1/') for method in actual))
+        self.assertEqual([urllib.parse.parse_qs(urllib.parse.urlsplit(s[4:]).query)['filter[identifier]'][0]
+                          for s in actual[:3]], list(module.IDENTIFIERS))
         self.assertEqual(captured['payload']['exp'] - captured['payload']['iat'], 300)
         self.assertEqual(captured['options']['algorithm'], 'ES256')
 
@@ -150,12 +159,21 @@ class SigningPreflightTests(unittest.TestCase):
 
     def test_http_error_body_and_url_are_not_exposed(self):
         class Opener:
+            body = b'SYNTHETIC_SECRET_NEVER_PRINT'
             def open(self, request, **kwargs):
                 raise urllib.error.HTTPError('SYNTHETIC_SECRET_NEVER_PRINT', 403,
-                    'SYNTHETIC_SECRET_NEVER_PRINT', {}, io.BytesIO(b'SYNTHETIC_SECRET_NEVER_PRINT'))
-        with self.assertRaisesRegex(module.CheckError, '^APPLE_HTTP_403$'):
-            module.AppleReader('synthetic-token', Opener()).get('/v1/bundleIds',
-                {'filter[identifier]': module.IDENTIFIERS[0]})
+                    'SYNTHETIC_SECRET_NEVER_PRINT', {}, io.BytesIO(self.body))
+        for body, kind in ((b'SYNTHETIC_SECRET_NEVER_PRINT', 'UNKNOWN'),
+                           (json.dumps({'errors': [{'code': 'FORBIDDEN_ERROR',
+                            'detail': 'SYNTHETIC_SECRET_NEVER_PRINT'}]}).encode(), 'FORBIDDEN')):
+            opener = Opener()
+            opener.body = body
+            with self.assertRaisesRegex(module.CheckError, '^APPLE_HTTP_403$') as context:
+                module.AppleReader('synthetic-token', opener).get('/v1/bundleIds',
+                    {'filter[identifier]': module.IDENTIFIERS[0]})
+            self.assertEqual(context.exception.http_route, 'BUNDLE_IDS')
+            self.assertEqual(context.exception.apple_error_kind, kind)
+            self.assertNotIn('SYNTHETIC_SECRET_NEVER_PRINT', str(context.exception.__dict__))
 
 
 if __name__ == '__main__':

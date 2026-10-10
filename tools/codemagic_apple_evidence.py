@@ -35,7 +35,9 @@ def sanitize(payload):
     result = {k: payload[k] for k in ("status", "authentication_verified", "signed_build_ready",
         "apple_resources_modified", "binary_uploaded", "new_payment_enabled")}
     for field, allowed in (("private_key_input_format", {"PEM", "ESCAPED_PEM", "BASE64_PEM", "FILE_REFERENCE"}),
-                           ("signing_error_kind", {"VALUE_ERROR", "INVALID_KEY", "UNSUPPORTED_ALGORITHM", "IMPORT_ERROR", "NOT_IMPLEMENTED", "UNKNOWN"})):
+                           ("signing_error_kind", {"VALUE_ERROR", "INVALID_KEY", "UNSUPPORTED_ALGORITHM", "IMPORT_ERROR", "NOT_IMPLEMENTED", "UNKNOWN"}),
+                           ("apple_request_kind", {"BUNDLE_IDS", "CERTIFICATES"}),
+                           ("apple_error_kind", {"FORBIDDEN", "AUTHENTICATION", "INVALID_PARAMETER", "INVALID_REQUEST", "UNKNOWN"})):
         if field in payload:
             if not isinstance(payload[field], str) or payload[field] not in allowed:
                 return None

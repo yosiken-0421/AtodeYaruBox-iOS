@@ -28,6 +28,23 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise CheckError('REDIRECT_REFUSED')
 
 
+def approved_requests():
+    """Exact read-only requests, including the filters used in Apple JWT scope."""
+    bundles = [('/v1/bundleIds', {'filter[identifier]': identifier,
+                'fields[bundleIds]': 'identifier,platform', 'limit': 200})
+               for identifier in IDENTIFIERS]
+    return bundles + [('/v1/certificates', {
+        'filter[certificateType]': 'DISTRIBUTION,IOS_DISTRIBUTION',
+        'fields[certificates]': 'certificateType,expirationDate', 'limit': 200})]
+
+
+def approved_scope():
+    # Apple checks query parameters too, except limit/cursor/sort. Omitting the
+    # filters/fields from scope does not authorize the filtered actual request.
+    return ['GET ' + route + '?' + urllib.parse.urlencode(query)
+            for route, query in approved_requests()]
+
+
 def normalize_private_key(value):
     if not isinstance(value, str) or not value.strip() or len(value) > 16 * 1024:
         raise CheckError('PRIVATE_KEY_FORMAT_INVALID')
@@ -92,7 +109,7 @@ def token_from_environment(environment, encoder=None, now=None):
     try:
         return encoder({'iss': issuer, 'iat': issued, 'exp': issued + 300,
                         'aud': 'appstoreconnect-v1',
-                        'scope': ['GET ' + route for route in ALLOWED_ROUTES]},
+                        'scope': approved_scope()},
                        private_key, algorithm='ES256',
                        headers={'kid': key_id, 'typ': 'JWT'})
     except Exception as error:
@@ -132,7 +149,25 @@ class AppleReader:
                 raise CheckError('RESPONSE_LIMIT_EXCEEDED')
             data = json.loads(raw)
         except urllib.error.HTTPError as error:
-            raise CheckError('APPLE_HTTP_' + str(int(error.code))) from None
+            failure = CheckError('APPLE_HTTP_' + str(int(error.code)))
+            failure.http_route = 'BUNDLE_IDS' if route == '/v1/bundleIds' else 'CERTIFICATES'
+            # Keep Apple's arbitrary message, URLs and IDs out of all reports.
+            failure.apple_error_kind = 'UNKNOWN'
+            try:
+                error_body = error.read(8193)
+                error_rows = json.loads(error_body).get('errors', []) if len(error_body) <= 8192 else []
+                codes = [row.get('code', '') for row in error_rows[:3] if isinstance(row, dict)]
+                if any(isinstance(c, str) and c.startswith('FORBIDDEN_ERROR') for c in codes):
+                    failure.apple_error_kind = 'FORBIDDEN'
+                elif any(isinstance(c, str) and c.startswith('NOT_AUTHORIZED') for c in codes):
+                    failure.apple_error_kind = 'AUTHENTICATION'
+                elif any(isinstance(c, str) and c.startswith('PARAMETER_ERROR') for c in codes):
+                    failure.apple_error_kind = 'INVALID_PARAMETER'
+                elif any(isinstance(c, str) and c.startswith('ENTITY_ERROR') for c in codes):
+                    failure.apple_error_kind = 'INVALID_REQUEST'
+            except Exception:
+                pass
+            raise failure from None
         except (urllib.error.URLError, TimeoutError, OSError):
             raise CheckError('APPLE_CONNECTION_FAILED') from None
         except (ValueError, UnicodeError):
@@ -153,16 +188,14 @@ def rows(response):
 
 def collect(getter):
     bundles = {}
-    for identifier in IDENTIFIERS:
-        entries = rows(getter('/v1/bundleIds', {'filter[identifier]': identifier,
-            'fields[bundleIds]': 'identifier,platform', 'limit': 200}))
+    requests = approved_requests()
+    for identifier, (route, query) in zip(IDENTIFIERS, requests[:3]):
+        entries = rows(getter(route, query))
         if len(entries) > 1 or any(entry['attributes'].get('identifier') != identifier
                                    for entry in entries):
             raise CheckError('BUNDLE_IDENTIFIER_AMBIGUOUS')
         bundles[identifier] = 'EXISTS' if entries else 'NOT_REGISTERED'
-    certificates = rows(getter('/v1/certificates', {
-        'filter[certificateType]': 'DISTRIBUTION,IOS_DISTRIBUTION',
-        'fields[certificates]': 'certificateType,expirationDate', 'limit': 200}))
+    certificates = rows(getter(*requests[3]))
     if any(entry['attributes'].get('certificateType') not in {'DISTRIBUTION', 'IOS_DISTRIBUTION'}
            for entry in certificates):
         raise CheckError('CERTIFICATE_RESPONSE_INVALID')
@@ -200,6 +233,10 @@ def main():
             report['private_key_input_format'] = error.key_kind
         if getattr(error, 'signing_error_kind', None) in ('VALUE_ERROR', 'INVALID_KEY', 'UNSUPPORTED_ALGORITHM', 'IMPORT_ERROR', 'NOT_IMPLEMENTED', 'UNKNOWN'):
             report['signing_error_kind'] = error.signing_error_kind
+        if getattr(error, 'http_route', None) in ('BUNDLE_IDS', 'CERTIFICATES'):
+            report['apple_request_kind'] = error.http_route
+        if getattr(error, 'apple_error_kind', None) in ('FORBIDDEN', 'AUTHENTICATION', 'INVALID_PARAMETER', 'INVALID_REQUEST', 'UNKNOWN'):
+            report['apple_error_kind'] = error.apple_error_kind
     except Exception:
         report.update(status='NOT_VERIFIED', diagnostic='UNEXPECTED_PREFLIGHT_FAILURE')
     record()
