@@ -103,7 +103,12 @@ def read_known_log(token, opener, download_opener):
     expected = "Verify Apple API authentication without changing apps or certificates"
     if not isinstance(step, dict) or expected not in (step.get("name"), step.get("title")):
         return {"log_diagnostic": "LOG_ACTION_IDENTITY_UNVERIFIED"}
-    url = step.get("logUrl")
+    subactions = step.get("subactions")
+    child = subactions[0] if isinstance(subactions, list) and subactions and isinstance(subactions[0], dict) else {}
+    inline = step.get("logs") or child.get("logs")
+    if isinstance(inline, str) and len(inline.encode("utf-8")) <= 256 * 1024:
+        return {"log_diagnostic": "KNOWN_STEP_LOG_CLASSIFIED", **log_diagnostic(inline.encode("utf-8"))}
+    url = step.get("logUrl") or child.get("logUrl")
     if not isinstance(url, str) or len(url) > 8192:
         endpoint = "https://api.codemagic.io/builds/" + BUILD + "/logs/2"
         request = urllib.request.Request(endpoint, method="GET", headers={"x-auth-token": token.strip()})
