@@ -105,7 +105,13 @@ def read_known_log(token, opener, download_opener):
         return {"log_diagnostic": "LOG_ACTION_IDENTITY_UNVERIFIED"}
     url = step.get("logUrl")
     if not isinstance(url, str) or len(url) > 8192:
-        return {"log_diagnostic": "LOG_URL_UNAVAILABLE"}
+        endpoint = "https://api.codemagic.io/builds/" + BUILD + "/logs/2"
+        request = urllib.request.Request(endpoint, method="GET", headers={"x-auth-token": token.strip()})
+        with opener.open(request, timeout=15) as response:
+            raw = response.read(256 * 1024 + 1)
+        if len(raw) > 256 * 1024:
+            return {"log_diagnostic": "LOG_LIMIT"}
+        return {"log_diagnostic": "STEP_LOG_ENDPOINT_CLASSIFIED", **log_diagnostic(raw)}
     parsed = urllib.parse.urlsplit(url)
     if (parsed.scheme != "https" or parsed.username or parsed.password or parsed.port not in (None, 443)
             or parsed.hostname not in ("storage.googleapis.com", "api.codemagic.io", "codemagic.io")
