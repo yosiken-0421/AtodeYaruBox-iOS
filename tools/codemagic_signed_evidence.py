@@ -22,7 +22,7 @@ BOOLS = ('signed_archive_verified', 'signed_ipa_verified', 'apple_resources_modi
          'binary_uploaded', 'billing_modified', 'private_key_disclosed', 'native_tests_repeated',
          'all_three_bundle_ids_available', 'distribution_certificate_created',
          'matching_certificate_key_verified', 'team_identifier_verified')
-STAGES = {'preflight', 'BUNDLE_ID_POST_RESERVED', 'CERTIFICATE_POST_RESERVED', 'AUTOMATIC_SIGNING_RESERVED',
+STAGES = {'preflight', 'inventory', 'BUNDLE_ID_POST_RESERVED', 'CERTIFICATE_POST_RESERVED', 'AUTOMATIC_SIGNING_RESERVED',
           'keychain_create', 'keychain_settings', 'keychain_unlock', 'keychain_read', 'keychain_search',
           'keychain_import', 'keychain_partition', 'archive', 'signature_verify', 'profile_decode',
           'entitlements_read', 'export', 'complete'}
@@ -38,12 +38,14 @@ DIAGNOSTICS = APPLE_DIAGNOSTICS | {
     'SIGNED_PRODUCT_METADATA_MISSING', 'SIGNED_PRODUCT_ID_OR_PRIVACY_MISMATCH', 'PROFILE_CONTENT_INVALID',
     'SIGNED_ENTITLEMENTS_INVALID', 'SIGNED_ENTITLEMENTS_PROFILE_MISMATCH', 'COMMAND_TIMEOUT', 'COMMAND_UNAVAILABLE',
     'COMMAND_FAILED', 'PKCS12_COMPATIBILITY_REQUIRED', 'SIGNED_IPA_NOT_UNIQUE', 'SIGNED_IPA_SIZE_REFUSED', 'SIGNED_IPA_PATH_REFUSED',
-    'UNEXPECTED_SIGNED_PACKAGE_FAILURE'}
+    'UNEXPECTED_SIGNED_PACKAGE_FAILURE', 'INVENTORY_IDENTIFIER_MAP_INVALID', 'INVENTORY_ROUTE_REFUSED',
+    'INVENTORY_RESPONSE_LIMIT', 'INVENTORY_READ_UNAVAILABLE', 'INVENTORY_PROFILE_DECODE_UNVERIFIED',
+    'INVENTORY_TASK_IDENTIFIER_MISSING', 'UNAPPROVED_SIGNING_MODE'}
 
 
 def sanitize(payload):
     if (not isinstance(payload, dict) or not isinstance(payload.get('status'), str)
-            or payload.get('status') not in {'NOT_RUN', 'NOT_VERIFIED', 'SIGNED_PACKAGE_VERIFIED'}
+            or payload.get('status') not in {'NOT_RUN', 'NOT_VERIFIED', 'SIGNED_PACKAGE_VERIFIED', 'SIGNING_INVENTORY_READ'}
             or payload.get('verified_native_source') != NATIVE or not isinstance(payload.get('stage'), str)
             or payload.get('stage') not in STAGES):
         return None
@@ -83,6 +85,17 @@ def sanitize(payload):
         result.update(ipa_sha256=payload['ipa_sha256'], ipa_size_bytes=payload['ipa_size_bytes'])
     elif payload['signed_ipa_verified']:
         return None
+    if payload['status'] == 'SIGNING_INVENTORY_READ':
+        inventory = payload.get('provisioning_inventory')
+        fields = {'app_groups_capability_enabled', 'profiles_returned', 'active_profiles_with_exact_group', 'app_store_profiles_with_exact_group'}
+        if payload['stage'] != 'inventory' or payload['apple_resources_modified'] is not False or not isinstance(inventory, dict) or set(inventory) != set(IDS):
+            return None
+        for item in inventory.values():
+            if (not isinstance(item, dict) or set(item) != fields or type(item['app_groups_capability_enabled']) is not bool
+                    or any(type(item[k]) is not int or not 0 <= item[k] <= 200 for k in fields - {'app_groups_capability_enabled'})
+                    or not item['app_store_profiles_with_exact_group'] <= item['active_profiles_with_exact_group'] <= item['profiles_returned']):
+                return None
+        result['provisioning_inventory'] = inventory
     return result
 
 

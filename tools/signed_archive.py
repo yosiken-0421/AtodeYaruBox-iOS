@@ -9,6 +9,7 @@ import plistlib
 import re
 import secrets
 import subprocess
+import sys
 import tempfile
 import zipfile
 
@@ -126,6 +127,22 @@ def main():
     record()
     if platform.system() != 'Darwin':
         result.update(status='NOT_VERIFIED', diagnostic='MACOS_REQUIRED')
+        record()
+        return 1
+    if sys.argv[1:] == ['--inspect-provisioning']:
+        from tools.apple_provisioning_inventory import inspect
+        result['stage'] = 'inventory'
+        try:
+            result.update(status='SIGNING_INVENTORY_READ', provisioning_inventory=inspect(os.environ))
+        except CheckError as error:
+            result.update(status='NOT_VERIFIED', diagnostic=str(error))
+        except Exception:
+            result.update(status='NOT_VERIFIED', diagnostic='INVENTORY_READ_UNAVAILABLE')
+        record()
+        print(json.dumps(result))
+        return 0 if result['status'] == 'SIGNING_INVENTORY_READ' else 1
+    if sys.argv[1:]:
+        result.update(status='NOT_VERIFIED', diagnostic='UNAPPROVED_SIGNING_MODE')
         record()
         return 1
     def checkpoint(stage):
