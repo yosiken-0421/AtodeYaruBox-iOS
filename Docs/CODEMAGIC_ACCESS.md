@@ -4,6 +4,8 @@
 
 署名準備の専用モード `configure_signing_key` は、本人のアプリ所有先と無料枠30分以上、有料CI/CD契約なしを再確認した場合だけ、アプリ専用の暗号化変数グループ `atodeyarubox-signing-key-d43f7c2` にRSA 2048-bitの `CERTIFICATE_PRIVATE_KEY` を生成・保存します。秘密値はCI処理のメモリと本人のCodemagic暗号化保存先だけで扱い、Gitや診断へ出しません。既存値を上書きせず、POST結果が不明でも自動再試行しません。このモードではAppleの証明書作成・アプリ配布・課金変更は行いません。
 
+[暗号化保存の実行結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38033364264)で、この専用RSA鍵の生成とsecure=trueの保存を確認しました。値の取得・ローカル保存・公開出力はありません。次の非公開CIでは、本アプリの3つのBundle IDだけを登録し、この鍵と公開鍵が一致する配布証明書を再利用するか、なければ上限内で1件だけ作成します。既存証明書の取消は行いません。Xcodeの自動署名による本体・共有拡張・WidgetのApp GroupsとProfile設定を試し、署名付きArchiveと内部TestFlight用IPAを検証します。これは未実行の準備であり、Appleへのバイナリ送信は含みません。追加の検証を含む補助79件が成功しました。
+
 GitHub Actions secret `CODEMAGIC_API_TOKEN` は保存済みで、対象アプリへのAPI認証は成功しています。同名secretの追加エラーは重複登録によるものです。削除や再入力は不要です。
 
 対象は本人のPersonalアカウントにあるアプリ `6ac5b7b31811e71b67b38c2a` です。Apple接続名には先頭のASCII空白4文字がありました。このアプリだけの暗号化変数グループ `atodeyarubox-apple-alias-d43f7c2` に公開の参照名を `ASC_KEY_ALIAS` として保存し、既存のAppleキーを変更せず参照できました。[暗号化変数の確認](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38022644416)。
