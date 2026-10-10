@@ -2,9 +2,11 @@
 
 [実Macの署名ビルド](https://codemagic.io/app/6ac5b7b31811e71b67b38c2a/build/6aca035e59e0a0dce2786763)が成功しました。[固定結果の照合記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38041236848)で`SIGNED_PACKAGE_VERIFIED`、Compile Error 0・コンパイラWarning 0、補助59件成功を確認。本体・共有拡張・WidgetのArchiveとIPAの署名、正しいID・Team・共有領域、期限内のApp Store用Profileと証明書一致を検証済みです。IPAは790041 bytes、SHA-256は`78bd5db499361a67869984bb7e34781b50f39b9a147c510e03449f1ccf5ed9b1`です。非公開CIにのみ保存し、Appleへのバイナリ送信は行っていません。
 
-アプリのネイティブUnit 76・UI 10の86件成功は別集計です。署名準備とアプリ登録状況のGET専用確認を含む補助115件が成功。[実MacのGET専用照合結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38095173268)で、`jp.atodeyarubox.app`のApp Store Connect登録がまだないことを確認しました。補助23件成功、Apple変更・バイナリ送信・課金変更は0件です。署名検証の成功と登録未完了を区別しています。
+アプリのネイティブUnit 76・UI 10の86件成功は別集計です。署名準備とアプリ登録状況のGET専用確認を含む補助115件が成功。以前の[GET専用照合結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38095173268)では登録がありませんでした。その後、本人から新規App作成完了の返信を受領しました。現在、新しいGET専用処理で本体ID `jp.atodeyarubox.app` の登録を照合しています。新規App画面を開き直す操作は不要です。
 
-次の本人操作は、新規Appの登録画面をiPhoneで開く1件です。[AppleのApps API](https://developer.apple.com/documentation/appstoreconnectapi/apps)は新しいアプリの作成を扱わないため、[Webでの公式手順](https://developer.apple.com/help/app-store-connect/create-an-app-record/add-a-new-app/)が必要です。本人のiPhoneのログイン済み画面をAIから操作できません。準備済みの入力内容はiOS、名称「あとでやる箱」、主言語「日本語」、Bundle ID `jp.atodeyarubox.app`、SKU `AtodeYaruBox-iOS`です。既存アプリを変更せず、本体IDだけを選びます。Appleへのバイナリ送信とTestFlightでの実機確認、クラウドAI・CloudKitは未完了です。
+2026-10-11の[無料枠確認](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38096204678)はPersonal所有・有料CI/CD契約なし・無料M2残量5401秒を確認。これは開始前の観測値で、以後の残量を保証する値ではありません。続く[登録の読み取り](https://codemagic.io/app/6ac5b7b31811e71b67b38c2a/build/6acaceb659e0a0dce27b27fa)は最大5分、既存のAPI接続だけを使い、証明書の鍵・Apple変更・バイナリ送信を含みません。署名済みIPAの成功証跡は維持します。
+
+次は本人のアプリだけへ送るTestFlight用の準備です。アプリ登録は本人申告とAPI検証を区別し、Appleへのバイナリ送信はまだ行いません。実機確認、クラウドAI・CloudKitは未完了です。
 
 共有設定の本人操作後、[実Macの照合](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38040776022)で3つのProfileを作成して共有権限を確認できました。変数形式のID照合を修正した後の成功ビルドはこの3つを再利用し、Appleリソースの作成・削除は0件です。
 
