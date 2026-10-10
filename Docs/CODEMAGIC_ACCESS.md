@@ -1,6 +1,6 @@
 # CodemagicとAppleへの接続確認
 
-最新の署名処理では、IDと配布証明書の再利用、証明書のMac取り込みが成功しました。補助37件成功・Compile Error 0・コンパイラWarning 0で、ArchiveのProfile設定が停止箇所です。設定とProfileのGET専用照合は実Mac補助43件成功後にHTTP400となりました。[Apple公式のcapabilities問い合わせ仕様](https://developer.apple.com/documentation/appstoreconnectapi/get-v1-bundleids-_id_-bundleidcapabilities)とパラメータを照合し、任意のfieldsを省くGETを最大1回だけ試す処理と、秘密値を含まない失敗箇所の診断を追加しました。補助97件成功。別の最大5分のGET専用確認を実行中です。この確認ではAppleの設定を書き換えず、アプリのBuildを行いません。アプリ本体のネイティブ86件成功は別集計です。署名済みIPAは未検証です。
+最新の署名処理では、IDと配布証明書の再利用、証明書のMac取り込みが成功しました。補助37件成功・Compile Error 0・コンパイラWarning 0で、ArchiveのProfile設定が停止箇所です。GET専用照合の実Mac診断では補助46件成功後、capabilitiesの`limit`指定がHTTP400の原因だと確認できました。[Apple公式仕様](https://developer.apple.com/documentation/appstoreconnectapi/get-v1-bundleids-_id_-bundleidcapabilities)は最大200と記載していますが、このアカウントでの実応答を優先して件数指定を省きます。必要時のGET再確認も任意パラメータをすべて省き、上限1回に制限します。補助97件成功。Apple設定の書き換えやアプリのBuildを伴わない、最大5分のGET専用確認を準備しています。アプリ本体のネイティブ86件成功は別集計です。署名済みIPAは未検証です。
 
 2026-10-10：Apple API認証に続き、このアプリ用の3つのBundle IDと配布用証明書を作成しました。[秘密値を出さずに取得した署名準備の実結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38035015291)。公開鍵の一致とTeam IDは検証済みです。Macへの証明書取り込みで停止したため、[cryptography公式のmacOS互換形式](https://cryptography.io/en/50.0.2/hazmat/primitives/asymmetric/serialization/)へ修正しました。再確認で作成済みIDの検索判定が停止し、本体と拡張をまとめた結果から完全一致するIDだけを選ぶよう修正しました。別アプリのIDや完全一致の重複は拒否します。補助88件成功、アプリのネイティブ86件成功は別集計です。署名済みIPA・実機インストール・TestFlight送信は未完了です。
 

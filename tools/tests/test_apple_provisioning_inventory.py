@@ -40,8 +40,10 @@ class Checks(unittest.TestCase):
         transport = SparseFailure()
         self.assertEqual(m.RelatedReader('synthetic-token', mapping(), transport).get(IDENTIFIERS[0], 'profiles'), [])
         self.assertEqual(len(transport.requests), 2)
-        self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(transport.requests[1].full_url).query), {'limit': ['200']})
+        self.assertEqual(urllib.parse.urlsplit(transport.requests[1].full_url).query, '')
         self.assertTrue(all(r.method == 'GET' for r in transport.requests))
+        self.assertTrue(all('limit' not in urllib.parse.parse_qs(urllib.parse.urlsplit(r.full_url).query)
+            for r in transport.requests if '/bundleIdCapabilities' in r.full_url))
 
     def test_failure_details_are_bounded_and_never_include_private_messages(self):
         class Failed(Transport):

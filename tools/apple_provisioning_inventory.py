@@ -57,7 +57,7 @@ class RelatedReader:
     def get(self, identifier, relationship):
         if identifier not in self.identifiers or relationship not in ('bundleIdCapabilities', 'profiles'):
             raise CheckError('INVENTORY_ROUTE_REFUSED')
-        query = ({'fields[bundleIdCapabilities]': 'capabilityType,settings', 'limit': 200}
+        query = ({'fields[bundleIdCapabilities]': 'capabilityType,settings'}
                  if relationship == 'bundleIdCapabilities' else
                  {'fields[profiles]': 'profileType,profileState,profileContent,expirationDate', 'limit': 200})
         try:
@@ -67,11 +67,11 @@ class RelatedReader:
                 raise
             # Sparse fields are optional in Apple's documented API. A single
             # GET without them handles service/schema drift without changing data.
-            return self._read(identifier, relationship, {'limit': 200})
+            return self._read(identifier, relationship, {})
 
     def _read(self, identifier, relationship, query):
         url = ('https://api.appstoreconnect.apple.com/v1/bundleIds/' + self.identifiers[identifier]
-            + '/' + relationship + '?' + urllib.parse.urlencode(query))
+            + '/' + relationship + ('?' + urllib.parse.urlencode(query) if query else ''))
         request = urllib.request.Request(url, method='GET', headers={'Authorization': 'Bearer ' + self.token})
         try:
             with self.opener.open(request, timeout=20) as response:
