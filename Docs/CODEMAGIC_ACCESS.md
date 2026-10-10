@@ -1,10 +1,10 @@
 # CodemagicとAppleへの接続確認
 
-本人から共有領域の登録と、本体・共有拡張・Widgetの3つへの関連付け保存が完了したとの報告を受け取りました。次はAI側で更新後の配布用Profileを取得し、実際の共有権限を照合して署名します。まだ署名済みIPAは未検証です。[直前の実結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38038157654)では補助50件成功、初回Profileは共有領域が欠けて停止しました。
+共有領域の登録と3つの関連付け保存後、[実Macの照合結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38040776022)で配布用Profileを3つ作成し、すべての共有権限・Team・既存証明書・期限・端末登録不要の配布用種別が一致しました。補助58件成功、証明書取り込みも成功。署名対象の識別名が`$(APP_BUNDLE_ID)`形式であることを照合処理が扱えず停止し、許可された変数だけを解決する修正と実プロジェクト生成器での回帰テストを追加しました。補助110件成功。署名済みIPAはまだ未検証です。
 
 [Apple公式手順](https://developer.apple.com/help/account/identifiers/enable-app-capabilities/)ではApp IDを変更した後のProfile更新が必要です。古い専用Profileを残したまま、固定名の`v2`を1件ずつ作成し、既存の`v2`があれば再利用します。自動的な次版作成や削除は行いません。既存の証明書・鍵・Teamと3つのBundle ID、共有領域、期限、端末登録不要のApp Store用Profileであることを厳密に照合します。
 
-補助109件が成功しました。[配布証明書とProfileを指定する署名方式](https://docs.codemagic.io/partials/alternative-code-signing-methods-ios/)を、CI生成の各ターゲットへ適用します。アプリのSwiftコード・既存プロジェクト生成器はネイティブ86件成功時と同一です。無料枠と有料契約なしを直前に再確認してから、専用の非公開CIを最大20分で1回だけ起動します。署名済みArchiveとIPAに含まれる本体・拡張2つを検証し、バイナリのAppleへの送信は含めません。キー再作成や追加の本人操作は現在不要です。
+補助110件が成功しました。[配布証明書とProfileを指定する署名方式](https://docs.codemagic.io/partials/alternative-code-signing-methods-ios/)を、CI生成の各ターゲットへ適用します。アプリのSwiftコード・既存プロジェクト生成器はネイティブ86件成功時と同一です。無料枠と有料契約なしを直前に再確認してから、修正した専用の非公開CIを最大20分で1回起動します。作成済み3つのProfileを再利用し、署名済みArchiveとIPAに含まれる本体・拡張2つを検証します。バイナリのAppleへの送信は含めません。キー再作成や追加の本人操作は現在不要です。
 
 最新の署名処理では、IDと配布証明書の再利用、証明書のMac取り込みが成功しました。補助37件成功・Compile Error 0・コンパイラWarning 0で、ArchiveのProfile設定が停止箇所です。[実MacでのGET専用照合](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38037634619)は補助46件とAppleへの照合が成功し、3つのIDすべてでAPP_GROUPSが有効、Profileは0件でした。共有領域そのものの登録・関連付けまではこのAPIでは確認できません。
 

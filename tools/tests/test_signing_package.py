@@ -5,6 +5,8 @@ import unittest
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
+import contextlib
+import copy
 from tools import apple_signing_resources as resources
 from tools import signed_archive as archive
 from tools.apple_signing_preflight import CheckError, IDENTIFIERS
@@ -27,6 +29,31 @@ def profile():
 
 
 class Tests(unittest.TestCase):
+    def test_real_generator_macro_targets_resolve_and_other_apps_are_refused(self):
+        generator = archive.generate_project
+        original = copy.deepcopy(generator.OBJECTS)
+        materials = {identifier: {'uuid': str(i) * 8 + '-' + str(i) * 4 + '-' + str(i) * 4 + '-' + str(i) * 4 + '-' + str(i) * 12}
+            for i, identifier in enumerate(IDENTIFIERS, 1)}
+        try:
+            with tempfile.TemporaryDirectory() as directory, patch.object(generator, 'PROJECT', Path(directory)), contextlib.redirect_stdout(io.StringIO()):
+                generator.main()
+            generated = copy.deepcopy(generator.OBJECTS)
+            config = (archive.ROOT / 'Config/App.xcconfig').read_text(encoding='utf-8')
+            archive.apply_manual_project(generated, 'DEMO123456', materials, 'a' * 40, config)
+            for name, identifier in zip(archive.TARGETS, IDENTIFIERS):
+                value = generated[generator.uid('config:' + name + ':Release')]['buildSettings']
+                self.assertEqual(value['PRODUCT_BUNDLE_IDENTIFIER'], identifier)
+                self.assertEqual(value['PROVISIONING_PROFILE_SPECIFIER'], materials[identifier]['uuid'])
+            changed = copy.deepcopy(generator.OBJECTS)
+            changed[generator.uid('config:BoxShare:Release')]['buildSettings']['PRODUCT_BUNDLE_IDENTIFIER'] = 'jp.other.app'
+            with self.assertRaisesRegex(CheckError, '^MANUAL_SIGNING_TARGET_MISMATCH$'):
+                archive.apply_manual_project(changed, 'DEMO123456', materials, 'a' * 40, config)
+            with self.assertRaisesRegex(CheckError, '^MANUAL_SIGNING_TARGET_MISMATCH$'):
+                archive.apply_manual_project(copy.deepcopy(generator.OBJECTS), 'DEMO123456', materials, 'a' * 40, 'APP_BUNDLE_ID = jp.other.app')
+        finally:
+            generator.OBJECTS.clear()
+            generator.OBJECTS.update(original)
+
     def test_manual_signing_uses_exact_three_distinct_profiles_and_matching_identity(self):
         materials = {identifier: {'uuid': str(i) * 8 + '-' + str(i) * 4 + '-' + str(i) * 4 + '-' + str(i) * 4 + '-' + str(i) * 12}
             for i, identifier in enumerate(IDENTIFIERS, 1)}

@@ -85,6 +85,21 @@ def install_profiles(materials):
             path.chmod(0o600)
 
 
+def apply_manual_project(objects, team, materials, certificate_sha1, configuration):
+    # Resolve only the one verified xcconfig macro used by this generator.
+    identifiers = re.findall(r'^APP_BUNDLE_ID\s*=\s*(\S+)\s*$', configuration, re.MULTILINE)
+    if identifiers != [IDENTIFIERS[0]]:
+        raise CheckError('MANUAL_SIGNING_TARGET_MISMATCH')
+    settings = manual_settings(team, materials, certificate_sha1)
+    for name, identifier in zip(TARGETS, IDENTIFIERS):
+        for configuration_name in ('Debug', 'Release'):
+            target_config = objects[generate_project.uid('config:' + name + ':' + configuration_name)]
+            value = target_config['buildSettings'].get('PRODUCT_BUNDLE_IDENTIFIER')
+            if not isinstance(value, str) or value.replace('$(APP_BUNDLE_ID)', IDENTIFIERS[0]) != identifier:
+                raise CheckError('MANUAL_SIGNING_TARGET_MISMATCH')
+            target_config['buildSettings'].update(settings[identifier], PRODUCT_BUNDLE_IDENTIFIER=identifier)
+
+
 def validate_profile(profile, identifier, team, distribution=False):
     entitlements = profile.get('Entitlements', {})
     if (profile.get('TeamIdentifier') != [team]
@@ -285,13 +300,8 @@ def main():
                     'SystemCapabilities': {'com.apple.ApplicationGroups.iOS': {'enabled': 1}}}
                 for name in TARGETS}
             if manual:
-                settings = manual_settings(team, materials, certificate_sha1)
-                for name, identifier in zip(TARGETS, IDENTIFIERS):
-                    for configuration in ('Debug', 'Release'):
-                        target_config = generate_project.OBJECTS[generate_project.uid('config:' + name + ':' + configuration)]
-                        if target_config['buildSettings'].get('PRODUCT_BUNDLE_IDENTIFIER') != identifier:
-                            raise CheckError('MANUAL_SIGNING_TARGET_MISMATCH')
-                        target_config['buildSettings'].update(settings[identifier])
+                apply_manual_project(generate_project.OBJECTS, team, materials, certificate_sha1,
+                    (ROOT / 'Config/App.xcconfig').read_text(encoding='utf-8'))
             document = dict(archiveVersion=1, classes={}, objectVersion=56,
                 objects=dict(sorted(generate_project.OBJECTS.items())), rootObject=generate_project.uid('project'))
             (generate_project.PROJECT / 'project.pbxproj').write_text('// !$*UTF8*$!\n' + generate_project.encode(document) + '\n', encoding='utf-8')
