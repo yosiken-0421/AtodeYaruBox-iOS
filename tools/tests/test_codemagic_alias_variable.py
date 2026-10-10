@@ -70,6 +70,27 @@ class Checks(unittest.TestCase):
         result = m.configure(TOKEN, Transport([{"data": TOKEN, "total_pages": TOKEN}]), GATE)
         self.assertNotIn(TOKEN, json.dumps(result))
 
+    def test_verification_only_reads_known_group_and_encryption_metadata(self):
+        t = Transport([{"data": [{"name": m.GROUP, "id": ID}]},
+                       {"data": [{"name": m.NAME, "secure": True, "value": TOKEN}]}])
+        result = m.configure(TOKEN, t, GATE, verify_only=True)
+        self.assertEqual(result["status"], "APP_LOCAL_ENCRYPTED_ALIAS_VERIFIED")
+        self.assertEqual([r.method for r in t.requests], ["GET", "GET"])
+        self.assertFalse(result["app_group_created"])
+        self.assertFalse(result["encrypted_alias_variable_created"])
+        self.assertNotIn(TOKEN, json.dumps(result))
+
+    def test_verification_never_creates_missing_or_changes_existing_variables(self):
+        for entries in ([], [{"name": "other", "id": ID}], [{"name": m.GROUP, "id": "../user"}]):
+            t = Transport([{"data": entries}])
+            result = m.configure(TOKEN, t, GATE, verify_only=True)
+            self.assertEqual(result["diagnostic"], "EXISTING_GROUP_IDENTITY_UNVERIFIED")
+            self.assertEqual([r.method for r in t.requests], ["GET"])
+        t = Transport([{"data": [{"name": m.GROUP, "id": ID}]}, {"data": []}])
+        result = m.configure(TOKEN, t, GATE, verify_only=True)
+        self.assertEqual(result["diagnostic"], "ENCRYPTED_VARIABLE_METADATA_UNVERIFIED")
+        self.assertEqual([r.method for r in t.requests], ["GET", "GET"])
+
     def test_group_identity_required_before_variable_import(self):
         t = Transport([{"data": []}, {"data": {"id": "../user", "name": m.GROUP}}])
         self.assertEqual(m.configure(TOKEN, t, GATE)["diagnostic"], "GROUP_CREATION_OUTCOME_UNVERIFIED")

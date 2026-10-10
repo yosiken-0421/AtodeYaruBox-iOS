@@ -1,4 +1,5 @@
 """Create only an app-local encrypted variable containing a known public alias."""
+import argparse
 import json
 import os
 from pathlib import Path
@@ -30,7 +31,7 @@ def single_page(payload):
             and current == 1 and (pages == 1 or pages == 0 and entries == []))
 
 
-def configure(token, opener=None, gate=None, checkpoint=None):
+def configure(token, opener=None, gate=None, checkpoint=None, verify_only=False):
     result = {"status": "NOT_CONFIGURED", "app_id": APP_ID, "group_name": GROUP,
               "variable_name": NAME, "private_key_used": False, "apple_resources_modified": False,
               "billing_modified": False, "builds_started": 0, "app_group_created": False,
@@ -50,9 +51,9 @@ def configure(token, opener=None, gate=None, checkpoint=None):
     group_id = None
 
     def request(path, method="GET", body=None):
-        allowed = path == APP_PATH and (method == "GET" or method == "POST" and body == {"name": GROUP})
+        allowed = path == APP_PATH and (method == "GET" or not verify_only and method == "POST" and body == {"name": GROUP})
         if valid_id(group_id) and path == "/variable-groups/" + group_id + "/variables":
-            allowed = method == "GET" or method == "POST" and body == {"secure": True, "variables": [{"name": NAME, "value": VALUE}]}
+            allowed = method == "GET" or not verify_only and method == "POST" and body == {"secure": True, "variables": [{"name": NAME, "value": VALUE}]}
         if not allowed:
             raise Halt("REQUEST_SCOPE_REFUSED")
         if method == "POST":
@@ -86,7 +87,23 @@ def configure(token, opener=None, gate=None, checkpoint=None):
                 if type(groups.get(field)) is int and 0 <= groups[field] <= 100000:
                     result["group_list_" + field] = groups[field]
             raise Halt("APP_GROUP_LIST_UNVERIFIED")
-        if any(not isinstance(entry, dict) or entry.get("name") == GROUP for entry in entries):
+        if any(not isinstance(entry, dict) for entry in entries):
+            raise Halt("APP_GROUP_LIST_UNVERIFIED")
+        matching = [entry for entry in entries if entry.get("name") == GROUP]
+        if verify_only:
+            if len(matching) != 1 or not valid_id(matching[0].get("id")):
+                raise Halt("EXISTING_GROUP_IDENTITY_UNVERIFIED")
+            group_id = matching[0]["id"]
+            payload = request("/variable-groups/" + group_id + "/variables")
+            verified = payload.get("data")
+            if (not single_page(payload) or not isinstance(verified, list) or len(verified) != 1
+                    or not isinstance(verified[0], dict) or verified[0].get("name") != NAME
+                    or verified[0].get("secure") is not True):
+                raise Halt("ENCRYPTED_VARIABLE_METADATA_UNVERIFIED")
+            result.update(status="APP_LOCAL_ENCRYPTED_ALIAS_VERIFIED",
+                          app_group_available=True, encrypted_alias_variable_available=True)
+            return result
+        if matching:
             raise Halt("EXISTING_GROUP_NOT_MODIFIED")
         created = request(APP_PATH, "POST", {"name": GROUP}).get("data", {})
         if not isinstance(created, dict) or created.get("name") != GROUP or not valid_id(created.get("id")):
@@ -111,16 +128,19 @@ def configure(token, opener=None, gate=None, checkpoint=None):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--verify-only", action="store_true")
+    args = parser.parse_args()
     write_report(REPORT, {"status": "NOT_RUN", "app_id": APP_ID})
     token = os.environ.pop("CODEMAGIC_API_TOKEN", "")
-    result = configure(token, checkpoint=lambda record: write_report(REPORT, record))
+    result = configure(token, checkpoint=lambda record: write_report(REPORT, record), verify_only=args.verify_only)
     token = ""
     source = os.environ.get("GITHUB_SHA", "")
     if re.fullmatch(r"[0-9a-f]{40}", source):
         result["source_commit"] = source
     write_report(REPORT, result)
     print(result["status"])
-    return 0 if result["status"] == "APP_LOCAL_ENCRYPTED_ALIAS_CONFIGURED" else 1
+    return 0 if result["status"] in ("APP_LOCAL_ENCRYPTED_ALIAS_CONFIGURED", "APP_LOCAL_ENCRYPTED_ALIAS_VERIFIED") else 1
 
 
 if __name__ == "__main__":
