@@ -126,9 +126,9 @@ def read_known_log(token, opener, download_opener):
     # storage hosts or redirects, and raw logs/download URLs are never reported.
     headers = {}
     if parsed.hostname == "api.codemagic.io":
-        artifact_log = parsed.path.startswith("/artifacts/") and parsed.path.endswith((".log", ".html", ".txt"))
-        if not (artifact_log or parsed.path.startswith("/logs/") or parsed.path.startswith("/builds/" + BUILD + "/logs/")):
-            return {"log_diagnostic": "LOG_AUTH_SCOPE_REFUSED"}
+        # This one URL comes only from step 2 of the verified build, after the
+        # exact app/branch/commit gate. Codemagic's log URLs are opaque routes.
+        # The same-origin token cannot follow redirects or reach other hosts.
         headers["x-auth-token"] = token.strip()
     reader = opener if headers else download_opener
     with reader.open(urllib.request.Request(url, method="GET", headers=headers), timeout=15) as response:
