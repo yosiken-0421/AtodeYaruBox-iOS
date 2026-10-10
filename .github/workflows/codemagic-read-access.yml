@@ -1,8 +1,30 @@
 {
   "name": "Inspect approved Codemagic app and configure its alias",
-  "on": {"workflow_dispatch": {"inputs": {"mode": {"type": "choice", "default": "app", "options": ["app", "integration", "configure_alias", "verify_alias", "apple_evidence"]}}}},
-  "permissions": {"contents": "read"},
-  "concurrency": {"group": "codemagic-read-access", "cancel-in-progress": false},
+  "on": {
+    "workflow_dispatch": {
+      "inputs": {
+        "mode": {
+          "type": "choice",
+          "default": "app",
+          "options": [
+            "app",
+            "integration",
+            "configure_alias",
+            "verify_alias",
+            "apple_evidence",
+            "configure_signing_key"
+          ]
+        }
+      }
+    }
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "concurrency": {
+    "group": "codemagic-read-access",
+    "cancel-in-progress": false
+  },
   "jobs": {
     "read": {
       "if": "${{ github.event.repository.private == false && github.repository == 'yosiken-0421/AtodeYaruBox-iOS' && github.ref == 'refs/heads/main' }}",
@@ -11,7 +33,9 @@
       "steps": [
         {
           "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-          "with": {"persist-credentials": false}
+          "with": {
+            "persist-credentials": false
+          }
         },
         {
           "name": "Check request scope, redirects and secret-safe reporting",
@@ -20,37 +44,60 @@
         {
           "name": "Read only the known completed Apple check report",
           "if": "${{ inputs.mode == 'apple_evidence' }}",
-          "env": {"CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"},
+          "env": {
+            "CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"
+          },
           "run": "python3 -m tools.codemagic_apple_evidence"
         },
         {
           "name": "Read only the existing approved application's metadata",
           "if": "${{ inputs.mode == 'app' }}",
-          "env": {"CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"},
+          "env": {
+            "CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"
+          },
           "run": "python3 tools/codemagic_read_access.py"
         },
         {
           "name": "Compare only the approved app's owner context and saved Apple alias",
           "if": "${{ inputs.mode == 'integration' }}",
-          "env": {"CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"},
+          "env": {
+            "CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"
+          },
           "run": "python3 -m tools.codemagic_integration_read"
         },
         {
           "name": "Create only an app-local encrypted variable for the known public alias",
           "if": "${{ inputs.mode == 'configure_alias' }}",
-          "env": {"CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"},
+          "env": {
+            "CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"
+          },
           "run": "python3 -m tools.codemagic_alias_variable"
         },
         {
           "name": "Verify only the task's existing app-local alias metadata",
           "if": "${{ inputs.mode == 'verify_alias' }}",
-          "env": {"CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"},
+          "env": {
+            "CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"
+          },
           "run": "python3 -m tools.codemagic_alias_variable --verify-only"
+        },
+        {
+          "name": "Prepare signing-key runtime and test the encrypted destination",
+          "if": "inputs.mode == 'configure_signing_key'",
+          "run": "python3 -m pip --isolated install --disable-pip-version-check --retries 1 --timeout 20 --index-url https://pypi.org/simple cryptography==50.0.2\npython3 -m unittest tools.tests.test_codemagic_signing_key -v"
+        },
+        {
+          "name": "Create only a task-owned encrypted certificate key",
+          "if": "inputs.mode == 'configure_signing_key'",
+          "env": {
+            "CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"
+          },
+          "run": "python3 -m tools.codemagic_signing_key"
         },
         {
           "name": "Show sanitized access result",
           "if": "always()",
-          "run": "python3 -c \"from pathlib import Path; [print(p.read_text()) for p in (Path('artifacts/codemagic-read-access.json'), Path('artifacts/codemagic-integration-read.json'), Path('artifacts/codemagic-alias-variable.json'), Path('artifacts/codemagic-apple-evidence.json')) if p.exists()]\""
+          "run": "python3 -c \"from pathlib import Path; [print(p.read_text()) for p in (Path('artifacts/codemagic-read-access.json'), Path('artifacts/codemagic-integration-read.json'), Path('artifacts/codemagic-alias-variable.json'), Path('artifacts/codemagic-apple-evidence.json artifacts/codemagic-signing-key.json')) if p.exists()]\""
         }
       ]
     }
