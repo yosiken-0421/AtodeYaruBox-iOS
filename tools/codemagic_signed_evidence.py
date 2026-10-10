@@ -22,7 +22,7 @@ BOOLS = ('signed_archive_verified', 'signed_ipa_verified', 'apple_resources_modi
          'binary_uploaded', 'billing_modified', 'private_key_disclosed', 'native_tests_repeated',
          'all_three_bundle_ids_available', 'distribution_certificate_created',
          'matching_certificate_key_verified', 'team_identifier_verified')
-STAGES = {'preflight', 'inventory', 'profile_prepare', 'profile_install', 'MANUAL_SIGNING_PREPARED', 'BUNDLE_ID_POST_RESERVED', 'CERTIFICATE_POST_RESERVED', 'AUTOMATIC_SIGNING_RESERVED',
+STAGES = {'preflight', 'app_record', 'inventory', 'profile_prepare', 'profile_install', 'MANUAL_SIGNING_PREPARED', 'BUNDLE_ID_POST_RESERVED', 'CERTIFICATE_POST_RESERVED', 'AUTOMATIC_SIGNING_RESERVED',
           'keychain_create', 'keychain_settings', 'keychain_unlock', 'keychain_read', 'keychain_search',
           'keychain_import', 'keychain_partition', 'archive', 'signature_verify', 'profile_decode',
           'entitlements_read', 'export', 'complete'}
@@ -45,12 +45,13 @@ DIAGNOSTICS = APPLE_DIAGNOSTICS | {
     'PROFILE_RESPONSE_LIMIT', 'PROFILE_CREATION_OUTCOME_UNVERIFIED', 'PROFILE_REQUEST_OUTCOME_UNAVAILABLE',
     'APP_GROUP_PROFILE_ASSIGNMENT_REQUIRED', 'PROFILE_CERTIFICATE_MISMATCH', 'PROFILE_OWNED_MATCH_AMBIGUOUS',
     'PROFILE_PREPARATION_UNAVAILABLE', 'PROFILE_NAME_OR_UUID_UNVERIFIED', 'PROFILE_INSTALL_COLLISION',
-    'MANUAL_SIGNING_MATERIAL_UNVERIFIED', 'MANUAL_SIGNING_TARGET_MISMATCH'}
+    'MANUAL_SIGNING_MATERIAL_UNVERIFIED', 'MANUAL_SIGNING_TARGET_MISMATCH',
+    'APP_RECORD_RESPONSE_LIMIT', 'APP_RECORD_IDENTITY_UNVERIFIED', 'APP_RECORD_READ_UNAVAILABLE'}
 
 
 def sanitize(payload):
     if (not isinstance(payload, dict) or not isinstance(payload.get('status'), str)
-            or payload.get('status') not in {'NOT_RUN', 'NOT_VERIFIED', 'SIGNED_PACKAGE_VERIFIED', 'SIGNING_INVENTORY_READ', 'DISTRIBUTION_PROFILES_VERIFIED'}
+            or payload.get('status') not in {'NOT_RUN', 'NOT_VERIFIED', 'APP_RECORD_READ', 'SIGNED_PACKAGE_VERIFIED', 'SIGNING_INVENTORY_READ', 'DISTRIBUTION_PROFILES_VERIFIED'}
             or payload.get('verified_native_source') != NATIVE or not isinstance(payload.get('stage'), str)
             or payload.get('stage') not in STAGES):
         return None
@@ -69,6 +70,17 @@ def sanitize(payload):
         if not isinstance(value, str) or value not in DIAGNOSTICS and not re.fullmatch(r'(?:APPLE|RESOURCE)_HTTP_[1-5][0-9]{2}', value):
             return None
         result['diagnostic'] = value
+    if payload['status'] == 'APP_RECORD_READ':
+        if (payload['stage'] != 'app_record' or payload.get('app_record_read_verified') is not True
+                or type(payload.get('app_record_exists')) is not bool or payload['apple_resources_modified'] is not False):
+            return None
+        result.update(app_record_read_verified=True, app_record_exists=payload['app_record_exists'])
+        if payload['app_record_exists']:
+            if not isinstance(payload.get('app_record_id'), str) or not re.fullmatch(r'[0-9]{6,12}', payload['app_record_id']):
+                return None
+            result['app_record_id'] = payload['app_record_id']
+        elif 'app_record_id' in payload:
+            return None
     for key in ('compile_errors', 'compiler_warnings'):
         if key in payload:
             if type(payload[key]) is not int or not 0 <= payload[key] <= 10000:

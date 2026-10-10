@@ -187,6 +187,18 @@ def main():
         result.update(status='NOT_VERIFIED', diagnostic='MACOS_REQUIRED')
         record()
         return 1
+    if sys.argv[1:] == ['--inspect-app-record']:
+        from tools.apple_app_record import inspect
+        result['stage'] = 'app_record'
+        try:
+            result.update(inspect(os.environ), status='APP_RECORD_READ')
+        except CheckError as error:
+            result.update(status='NOT_VERIFIED', diagnostic=str(error))
+        except Exception:
+            result.update(status='NOT_VERIFIED', diagnostic='APP_RECORD_READ_UNAVAILABLE')
+        record()
+        print(json.dumps(result))
+        return 0 if result['status'] == 'APP_RECORD_READ' else 1
     if sys.argv[1:] == ['--inspect-provisioning']:
         from tools.apple_provisioning_inventory import inspect, InventoryError
         result['stage'] = 'inventory'

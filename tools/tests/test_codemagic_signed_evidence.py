@@ -30,6 +30,14 @@ class Transport:
 
 
 class Checks(unittest.TestCase):
+    def test_app_record_evidence_only_accepts_verified_identity_without_writes(self):
+        payload = report() | dict(status='APP_RECORD_READ', stage='app_record', apple_resources_modified=False,
+            app_record_read_verified=True, app_record_exists=True, app_record_id='1234567890', private=TOKEN)
+        payload.pop('diagnostic')
+        self.assertNotIn(TOKEN, json.dumps(m.sanitize(payload)))
+        for change in ({'app_record_id': TOKEN}, {'app_record_exists': False}, {'app_record_read_verified': False}, {'apple_resources_modified': True}):
+            self.assertIsNone(m.sanitize(payload | change))
+
     def test_known_report_get_only_no_storage_credentials_or_private_contents(self):
         api, storage = Transport(build()), Transport({**report(), 'private': TOKEN})
         result = m.inspect(TOKEN, api, storage)

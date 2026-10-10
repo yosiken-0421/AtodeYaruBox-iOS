@@ -1,6 +1,10 @@
 # CodemagicとAppleへの接続確認
 
-共有領域の登録と3つの関連付け保存後、[実Macの照合結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38040776022)で配布用Profileを3つ作成し、すべての共有権限・Team・既存証明書・期限・端末登録不要の配布用種別が一致しました。補助58件成功、証明書取り込みも成功。署名対象の識別名が`$(APP_BUNDLE_ID)`形式であることを照合処理が扱えず停止し、許可された変数だけを解決する修正と実プロジェクト生成器での回帰テストを追加しました。補助110件成功。署名済みIPAはまだ未検証です。
+[実Macの署名ビルド](https://codemagic.io/app/6ac5b7b31811e71b67b38c2a/build/6aca035e59e0a0dce2786763)が成功しました。[固定結果の照合記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38041236848)で`SIGNED_PACKAGE_VERIFIED`、Compile Error 0・コンパイラWarning 0、補助59件成功を確認。本体・共有拡張・WidgetのArchiveとIPAの署名、正しいID・Team・共有領域、期限内のApp Store用Profileと証明書一致を検証済みです。IPAは790041 bytes、SHA-256は`78bd5db499361a67869984bb7e34781b50f39b9a147c510e03449f1ccf5ed9b1`です。非公開CIにのみ保存し、Appleへのバイナリ送信は行っていません。
+
+アプリのネイティブUnit 76・UI 10の86件成功は別集計です。署名準備とアプリ登録状況のGET専用確認を含む補助115件が成功。次にメインIDだけに限定したApple APIでApp Store Connectの登録有無を確認します。存在する場合は正しいIDを照合し、存在しない場合は未登録を記録します。アプリ登録の作成・送信・課金変更はこの照合に含みません。
+
+共有設定の本人操作後、[実Macの照合](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38040776022)で3つのProfileを作成して共有権限を確認できました。変数形式のID照合を修正した後の成功ビルドはこの3つを再利用し、Appleリソースの作成・削除は0件です。
 
 [Apple公式手順](https://developer.apple.com/help/account/identifiers/enable-app-capabilities/)ではApp IDを変更した後のProfile更新が必要です。古い専用Profileを残したまま、固定名の`v2`を1件ずつ作成し、既存の`v2`があれば再利用します。自動的な次版作成や削除は行いません。既存の証明書・鍵・Teamと3つのBundle ID、共有領域、期限、端末登録不要のApp Store用Profileであることを厳密に照合します。
 
