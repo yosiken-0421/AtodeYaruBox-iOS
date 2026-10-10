@@ -2,11 +2,11 @@
 
 [実Macの署名ビルド](https://codemagic.io/app/6ac5b7b31811e71b67b38c2a/build/6aca035e59e0a0dce2786763)が成功しました。[固定結果の照合記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38041236848)で`SIGNED_PACKAGE_VERIFIED`、Compile Error 0・コンパイラWarning 0、補助59件成功を確認。本体・共有拡張・WidgetのArchiveとIPAの署名、正しいID・Team・共有領域、期限内のApp Store用Profileと証明書一致を検証済みです。IPAは790041 bytes、SHA-256は`78bd5db499361a67869984bb7e34781b50f39b9a147c510e03449f1ccf5ed9b1`です。非公開CIにのみ保存し、Appleへのバイナリ送信は行っていません。
 
-アプリのネイティブUnit 76・UI 10の86件成功は別集計です。署名準備とアプリ登録状況のGET専用確認を含む補助115件が成功。以前の[GET専用照合結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38095173268)では登録がありませんでした。その後、本人から新規App作成完了の返信を受領しました。現在、新しいGET専用処理で本体ID `jp.atodeyarubox.app` の登録を照合しています。新規App画面を開き直す操作は不要です。
+2026-10-11：Apple側で本体ID `jp.atodeyarubox.app` のApp Store Connect登録を確認しました。App IDは `6821479152`。[登録の照合記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38096340327)は実Mac補助23件とGET専用確認が成功。新規Appの登録操作は完了しています。
 
-2026-10-11の[無料枠確認](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38096204678)はPersonal所有・有料CI/CD契約なし・無料M2残量5401秒を確認。これは開始前の観測値で、以後の残量を保証する値ではありません。続く[登録の読み取り](https://codemagic.io/app/6ac5b7b31811e71b67b38c2a/build/6acaceb659e0a0dce27b27fa)は最大5分、既存のAPI接続だけを使い、証明書の鍵・Apple変更・バイナリ送信を含みません。署名済みIPAの成功証跡は維持します。
+署名付きArchive・IPAは検証済み、Compile Error 0・コンパイラWarning 0。ネイティブUnit 76/UI 10の86件、既存補助115件が成功。TestFlight送信準備の独立した7件も成功しました。Appleへのバイナリ送信とiPhoneインストールは未実行です。送信先・版0.1.0(1)・内部テスト限定・重複送信を防ぐ確認を固定した非公開ジョブを準備し、最後に本人の送信許可だけを受け取ります。追加支払い・キー再作成は不要です。実機QA、クラウドAI・CloudKitは未完了です。
 
-次は本人のアプリだけへ送るTestFlight用の準備です。アプリ登録は本人申告とAPI検証を区別し、Appleへのバイナリ送信はまだ行いません。実機確認、クラウドAI・CloudKitは未完了です。
+直前の[無料枠確認](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38096204678)はPersonal所有・有料CI/CD契約なし・M2無料残量5401秒を確認しました。これは登録照合前の観測で、次のMacジョブ開始前には無料枠を再取得します。署名済みIPAの成功と、GET専用結果に含まれる署名未実行フラグは別の実行として保持しています。
 
 共有設定の本人操作後、[実Macの照合](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38040776022)で3つのProfileを作成して共有権限を確認できました。変数形式のID照合を修正した後の成功ビルドはこの3つを再利用し、Appleリソースの作成・削除は0件です。
 
