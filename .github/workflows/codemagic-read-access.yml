@@ -40,7 +40,7 @@
         },
         {
           "name": "Check request scope, redirects and secret-safe reporting",
-          "run": "python3 -m unittest tools.tests.test_codemagic_read_access tools.tests.test_codemagic_integration_read tools.tests.test_codemagic_alias_variable tools.tests.test_codemagic_apple_evidence -v tools.tests.test_codemagic_signed_evidence"
+          "run": "python3 -m unittest -v tools.tests.test_codemagic_read_access tools.tests.test_codemagic_integration_read tools.tests.test_codemagic_alias_variable tools.tests.test_codemagic_apple_evidence tools.tests.test_codemagic_signed_evidence"
         },
         {
           "name": "Read only the known completed Apple check report",
