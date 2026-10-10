@@ -1,6 +1,6 @@
 {
   "name": "Inspect approved Codemagic app and configure its alias",
-  "on": {"workflow_dispatch": {"inputs": {"mode": {"type": "choice", "default": "app", "options": ["app", "integration", "configure_alias", "verify_alias"]}}}},
+  "on": {"workflow_dispatch": {"inputs": {"mode": {"type": "choice", "default": "app", "options": ["app", "integration", "configure_alias", "verify_alias", "apple_evidence"]}}}},
   "permissions": {"contents": "read"},
   "concurrency": {"group": "codemagic-read-access", "cancel-in-progress": false},
   "jobs": {
@@ -15,7 +15,13 @@
         },
         {
           "name": "Check request scope, redirects and secret-safe reporting",
-          "run": "python3 -m unittest tools.tests.test_codemagic_read_access tools.tests.test_codemagic_integration_read tools.tests.test_codemagic_alias_variable -v"
+          "run": "python3 -m unittest tools.tests.test_codemagic_read_access tools.tests.test_codemagic_integration_read tools.tests.test_codemagic_alias_variable tools.tests.test_codemagic_apple_evidence -v"
+        },
+        {
+          "name": "Read only the known completed Apple check report",
+          "if": "${{ inputs.mode == 'apple_evidence' }}",
+          "env": {"CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"},
+          "run": "python3 -m tools.codemagic_apple_evidence"
         },
         {
           "name": "Read only the existing approved application's metadata",
@@ -44,7 +50,7 @@
         {
           "name": "Show sanitized access result",
           "if": "always()",
-          "run": "python3 -c \"from pathlib import Path; [print(p.read_text()) for p in (Path('artifacts/codemagic-read-access.json'), Path('artifacts/codemagic-integration-read.json'), Path('artifacts/codemagic-alias-variable.json')) if p.exists()]\""
+          "run": "python3 -c \"from pathlib import Path; [print(p.read_text()) for p in (Path('artifacts/codemagic-read-access.json'), Path('artifacts/codemagic-integration-read.json'), Path('artifacts/codemagic-alias-variable.json'), Path('artifacts/codemagic-apple-evidence.json')) if p.exists()]\""
         }
       ]
     }
