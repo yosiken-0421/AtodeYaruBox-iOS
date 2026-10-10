@@ -2,9 +2,13 @@
 
 [実Macの署名ビルド](https://codemagic.io/app/6ac5b7b31811e71b67b38c2a/build/6aca035e59e0a0dce2786763)が成功しました。[固定結果の照合記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38041236848)で`SIGNED_PACKAGE_VERIFIED`、Compile Error 0・コンパイラWarning 0、補助59件成功を確認。本体・共有拡張・WidgetのArchiveとIPAの署名、正しいID・Team・共有領域、期限内のApp Store用Profileと証明書一致を検証済みです。IPAは790041 bytes、SHA-256は`78bd5db499361a67869984bb7e34781b50f39b9a147c510e03449f1ccf5ed9b1`です。非公開CIにのみ保存し、Appleへのバイナリ送信は行っていません。
 
-アプリのネイティブUnit 76・UI 10の86件成功は別集計です。署名準備とアプリ登録状況のGET専用確認を含む補助115件が成功。次にメインIDだけに限定したApple APIでApp Store Connectの登録有無を確認します。存在する場合は正しいIDを照合し、存在しない場合は未登録を記録します。アプリ登録の作成・送信・課金変更はこの照合に含みません。
+アプリのネイティブUnit 76・UI 10の86件成功は別集計です。署名準備とアプリ登録状況のGET専用確認を含む補助115件が成功。[実MacのGET専用照合結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38095173268)で、`jp.atodeyarubox.app`のApp Store Connect登録がまだないことを確認しました。補助23件成功、Apple変更・バイナリ送信・課金変更は0件です。署名検証の成功と登録未完了を区別しています。
+
+次の本人操作は、新規Appの登録画面をiPhoneで開く1件です。[AppleのApps API](https://developer.apple.com/documentation/appstoreconnectapi/apps)は新しいアプリの作成を扱わないため、[Webでの公式手順](https://developer.apple.com/help/app-store-connect/create-an-app-record/add-a-new-app/)が必要です。本人のiPhoneのログイン済み画面をAIから操作できません。準備済みの入力内容はiOS、名称「あとでやる箱」、主言語「日本語」、Bundle ID `jp.atodeyarubox.app`、SKU `AtodeYaruBox-iOS`です。既存アプリを変更せず、本体IDだけを選びます。Appleへのバイナリ送信とTestFlightでの実機確認、クラウドAI・CloudKitは未完了です。
 
 共有設定の本人操作後、[実Macの照合](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38040776022)で3つのProfileを作成して共有権限を確認できました。変数形式のID照合を修正した後の成功ビルドはこの3つを再利用し、Appleリソースの作成・削除は0件です。
+
+以下は過去の調査記録です。署名未検証・以前の本人操作待ち・古い無料残時間は、現在の状態や案内ではありません。
 
 [Apple公式手順](https://developer.apple.com/help/account/identifiers/enable-app-capabilities/)ではApp IDを変更した後のProfile更新が必要です。古い専用Profileを残したまま、固定名の`v2`を1件ずつ作成し、既存の`v2`があれば再利用します。自動的な次版作成や削除は行いません。既存の証明書・鍵・Teamと3つのBundle ID、共有領域、期限、端末登録不要のApp Store用Profileであることを厳密に照合します。
 
