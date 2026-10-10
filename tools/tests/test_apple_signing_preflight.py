@@ -35,6 +35,16 @@ class SigningPreflightTests(unittest.TestCase):
             with self.assertRaisesRegex(module.CheckError, '^PRIVATE_KEY_REFERENCE_REFUSED$'):
                 module.normalize_private_key(value)
 
+    def test_ci_temporary_reference_accepts_extensionless_key_and_refuses_other_contents(self):
+        with tempfile.TemporaryDirectory() as directory:
+            key_file = Path(directory) / 'integration-key'
+            pem = self.environment()['APP_STORE_CONNECT_PRIVATE_KEY']
+            key_file.write_text(pem, encoding='utf-8')
+            self.assertEqual(module.normalize_private_key('@file:' + str(key_file)), (pem, 'FILE_REFERENCE'))
+            key_file.write_text('SYNTHETIC_SECRET_NEVER_PRINT', encoding='utf-8')
+            with self.assertRaisesRegex(module.CheckError, '^PRIVATE_KEY_FORMAT_INVALID$'):
+                module.normalize_private_key('@file:' + str(key_file))
+
     def test_real_ephemeral_p256_signature_with_pinned_runtime(self):
         import jwt
         from cryptography.hazmat.primitives.asymmetric import ec

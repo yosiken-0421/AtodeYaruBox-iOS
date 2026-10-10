@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -34,12 +35,20 @@ def normalize_private_key(value):
     kind = 'PEM'
     if key.startswith('@file:'):
         candidate = Path(key[6:]).expanduser().resolve()
-        roots = [Path('/tmp').resolve(), ROOT.resolve()]
-        if (candidate.suffix.lower() != '.p8' or not any(candidate.is_relative_to(root) for root in roots)
+        # The integration supplies @file references; generated temporary key
+        # files need not retain the original .p8 filename. Keep this read inside
+        # the CI user's home, checkout or actual system temporary directories.
+        roots = [Path('/tmp').resolve(), Path(tempfile.gettempdir()).resolve(),
+                 Path.home().resolve(), ROOT.resolve()]
+        if (not any(candidate.is_relative_to(root) for root in roots)
                 or not candidate.is_file() or candidate.stat().st_size > 16 * 1024):
             raise CheckError('PRIVATE_KEY_REFERENCE_REFUSED')
         try:
-            key = candidate.read_text(encoding='utf-8-sig').strip().replace('\r\n', '\n')
+            with candidate.open('rb') as stream:
+                raw = stream.read(16 * 1024 + 1)
+            if len(raw) > 16 * 1024:
+                raise CheckError('PRIVATE_KEY_REFERENCE_REFUSED')
+            key = raw.decode('utf-8-sig').strip().replace('\r\n', '\n')
         except (OSError, UnicodeError):
             raise CheckError('PRIVATE_KEY_REFERENCE_UNAVAILABLE') from None
         kind = 'FILE_REFERENCE'
