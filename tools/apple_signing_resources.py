@@ -8,7 +8,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from tools.apple_signing_preflight import IDENTIFIERS, CheckError, NoRedirect, token_from_environment, rows
+from tools.apple_signing_preflight import IDENTIFIERS, CheckError, NoRedirect, token_from_environment, rows, exact_bundle_rows
 
 BASE = 'https://api.appstoreconnect.apple.com'
 LIMIT = 1024 * 1024
@@ -103,10 +103,8 @@ def prepare(environment, checkpoint=None):
     client = Client(resource_token(environment), csr_text, checkpoint=checkpoint)
     resources_created = []
     for identifier in IDENTIFIERS:
-        entries = rows(client.request('/v1/bundleIds', query={'filter[identifier]': identifier,
-                       'fields[bundleIds]': 'identifier,platform,seedId', 'limit': 200}))
-        if len(entries) > 1 or any(e['attributes'].get('identifier') != identifier for e in entries):
-            raise CheckError('BUNDLE_IDENTIFIER_AMBIGUOUS')
+        entries = exact_bundle_rows(rows(client.request('/v1/bundleIds', query={'filter[identifier]': identifier,
+                       'fields[bundleIds]': 'identifier,platform,seedId', 'limit': 200})), identifier)
         if not entries:
             created = client.request('/v1/bundleIds', 'POST', body=bundle_body(identifier)).get('data', {})
             if created.get('attributes', {}).get('identifier') != identifier:

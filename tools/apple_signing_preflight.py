@@ -186,14 +186,22 @@ def rows(response):
     return response['data']
 
 
+def exact_bundle_rows(entries, identifier):
+    # Apple may return the task's extension IDs for the main ID filter. Select
+    # the exact identifier and never substitute an extension or another app.
+    if identifier not in IDENTIFIERS or any(e['attributes'].get('identifier') not in IDENTIFIERS for e in entries):
+        raise CheckError('BUNDLE_IDENTIFIER_AMBIGUOUS')
+    exact = [e for e in entries if e['attributes'].get('identifier') == identifier]
+    if len(exact) > 1:
+        raise CheckError('BUNDLE_IDENTIFIER_AMBIGUOUS')
+    return exact
+
+
 def collect(getter):
     bundles = {}
     requests = approved_requests()
     for identifier, (route, query) in zip(IDENTIFIERS, requests[:3]):
-        entries = rows(getter(route, query))
-        if len(entries) > 1 or any(entry['attributes'].get('identifier') != identifier
-                                   for entry in entries):
-            raise CheckError('BUNDLE_IDENTIFIER_AMBIGUOUS')
+        entries = exact_bundle_rows(rows(getter(route, query)), identifier)
         bundles[identifier] = 'EXISTS' if entries else 'NOT_REGISTERED'
     certificates = rows(getter(*requests[3]))
     if any(entry['attributes'].get('certificateType') not in {'DISTRIBUTION', 'IOS_DISTRIBUTION'}

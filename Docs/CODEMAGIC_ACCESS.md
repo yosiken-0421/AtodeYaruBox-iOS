@@ -1,6 +1,6 @@
 # CodemagicとAppleへの接続確認
 
-2026-10-10：Apple API認証に続き、このアプリ用の3つのBundle IDと配布用証明書を作成しました。[秘密値を出さずに取得した署名準備の実結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38035015291)。公開鍵の一致とTeam IDは検証済みです。Macへの証明書取り込みで停止したため、[cryptography公式のmacOS互換形式](https://cryptography.io/en/50.0.2/hazmat/primitives/asymmetric/serialization/)へ修正しました。原因候補の互換性は次の実Macで検証します。補助87件成功、アプリのネイティブ86件成功は別集計です。署名済みIPA・実機インストール・TestFlight送信は未完了です。
+2026-10-10：Apple API認証に続き、このアプリ用の3つのBundle IDと配布用証明書を作成しました。[秘密値を出さずに取得した署名準備の実結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38035015291)。公開鍵の一致とTeam IDは検証済みです。Macへの証明書取り込みで停止したため、[cryptography公式のmacOS互換形式](https://cryptography.io/en/50.0.2/hazmat/primitives/asymmetric/serialization/)へ修正しました。再確認で作成済みIDの検索判定が停止し、本体と拡張をまとめた結果から完全一致するIDだけを選ぶよう修正しました。別アプリのIDや完全一致の重複は拒否します。補助88件成功、アプリのネイティブ86件成功は別集計です。署名済みIPA・実機インストール・TestFlight送信は未完了です。
 
 署名準備の専用モード `configure_signing_key` は、本人のアプリ所有先と無料枠30分以上、有料CI/CD契約なしを再確認した場合だけ、アプリ専用の暗号化変数グループ `atodeyarubox-signing-key-d43f7c2` にRSA 2048-bitの `CERTIFICATE_PRIVATE_KEY` を生成・保存します。秘密値はCI処理のメモリと本人のCodemagic暗号化保存先だけで扱い、Gitや診断へ出しません。既存値を上書きせず、POST結果が不明でも自動再試行しません。このモードではAppleの証明書作成・アプリ配布・課金変更は行いません。
 

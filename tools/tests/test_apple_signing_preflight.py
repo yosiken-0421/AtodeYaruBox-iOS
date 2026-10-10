@@ -83,6 +83,16 @@ class SigningPreflightTests(unittest.TestCase):
         with self.assertRaisesRegex(module.CheckError, '^INTEGRATION_CREDENTIALS_MISSING$'):
             module.token_from_environment({})
 
+    def test_main_filter_can_return_extensions_but_only_exact_unique_id_is_selected(self):
+        entries = [{'attributes': {'identifier': i}} for i in module.IDENTIFIERS]
+        for identifier in module.IDENTIFIERS:
+            selected = module.exact_bundle_rows(entries, identifier)
+            self.assertEqual([e['attributes']['identifier'] for e in selected], [identifier])
+        with self.assertRaisesRegex(module.CheckError, '^BUNDLE_IDENTIFIER_AMBIGUOUS$'):
+            module.exact_bundle_rows(entries + [entries[0]], module.IDENTIFIERS[0])
+        with self.assertRaisesRegex(module.CheckError, '^BUNDLE_IDENTIFIER_AMBIGUOUS$'):
+            module.exact_bundle_rows([{'attributes': {'identifier': 'another.app'}}], module.IDENTIFIERS[0])
+
     def test_invalid_identifiers_are_rejected(self):
         for name, invalid in [('APP_STORE_CONNECT_KEY_IDENTIFIER', 'not-valid'),
                               ('APP_STORE_CONNECT_ISSUER_ID', 'SENSITIVE-INPUT')]:
