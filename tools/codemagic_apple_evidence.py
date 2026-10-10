@@ -9,9 +9,9 @@ import urllib.request
 
 from tools.codemagic_read_access import APP_ID, NoRedirect, RefusedRedirect, write_report
 
-BUILD = "6ac9df8759e0a0dce277f59f"
-COMMIT = "50436fc98f32aee2bfc9003ff08e42bbc30b3ae0"
-BRANCH = "codex/apple-key-format-bfc329e"
+BUILD = "6ac9e0be2e8bb15cf3a7b9f8"
+COMMIT = "f00121300e7e3e135e72568bc6e994cbc648e15f"
+BRANCH = "codex/apple-ci-key-reference-2f5b2cf"
 API = "https://codemagic.io/api/v3/builds/" + BUILD
 NAME = "apple-signing-preflight.json"
 REPORT = Path("artifacts/codemagic-apple-evidence.json")
@@ -78,7 +78,7 @@ def log_diagnostic(raw):
                          ("python_module_missing", "ModuleNotFoundError"),
                          ("unit_checks_failed", "FAILED (")):
         result[flag] = needle in text
-    result["unit_checks_passed"] = bool(re.search(r"Ran 17 tests[^\n]*\n\s*\nOK(?:\n|$)", text))
+    result["unit_checks_passed"] = bool(re.search(r"Ran 18 tests[^\n]*\n\s*\nOK(?:\n|$)", text))
     decoder = json.JSONDecoder()
     for match in re.finditer(r"\{", text):
         try:
