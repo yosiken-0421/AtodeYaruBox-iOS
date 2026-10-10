@@ -62,6 +62,13 @@ class Checks(unittest.TestCase):
         self.assertEqual(m.sanitize(good), good)
         self.assertIsNone(m.sanitize({**good, "bundle_identifiers": {"other":"EXISTS"}}))
 
+    def test_log_diagnostics_never_copy_log_text_or_private_values(self):
+        result = m.log_diagnostic((TOKEN + "\nModuleNotFoundError\nFAILED (errors=1)\n" + json.dumps(report())).encode())
+        self.assertTrue(result["python_module_missing"])
+        self.assertTrue(result["unit_checks_failed"])
+        self.assertEqual(result["apple_report"], report())
+        self.assertNotIn(TOKEN, json.dumps(result))
+
 
 if __name__ == "__main__":
     unittest.main()

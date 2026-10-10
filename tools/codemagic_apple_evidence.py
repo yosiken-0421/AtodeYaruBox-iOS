@@ -63,6 +63,61 @@ def allowed_download(url):
         return False
 
 
+def log_diagnostic(raw):
+    text = raw.decode("utf-8", errors="replace")
+    result = {}
+    for flag, needle in (("pip_no_matching_distribution", "No matching distribution found"),
+                         ("pip_certificate_error", "CERTIFICATE_VERIFY_FAILED"),
+                         ("python_module_missing", "ModuleNotFoundError"),
+                         ("unit_checks_failed", "FAILED (")):
+        result[flag] = needle in text
+    result["unit_checks_passed"] = bool(re.search(r"Ran 13 tests[^\n]*\n\s*\nOK(?:\n|$)", text))
+    decoder = json.JSONDecoder()
+    for match in re.finditer(r"\{", text):
+        try:
+            candidate, _ = decoder.raw_decode(text[match.start():])
+        except ValueError:
+            continue
+        report = sanitize(candidate)
+        if report:
+            result["apple_report"] = report
+            break
+    return result
+
+
+def read_known_log(token, opener, download_opener):
+    req = urllib.request.Request("https://api.codemagic.io/builds/" + BUILD, method="GET",
+        headers={"x-auth-token": token.strip(), "Accept": "application/json"})
+    with opener.open(req, timeout=15) as response:
+        raw = response.read(1024 * 1024 + 1)
+    if len(raw) > 1024 * 1024:
+        return {"log_diagnostic": "METADATA_LIMIT"}
+    payload = json.loads(raw)
+    app, build = payload.get("application", {}), payload.get("build", {})
+    if app.get("_id") != APP_ID or build.get("_id") != BUILD:
+        return {"log_diagnostic": "LOG_BUILD_IDENTITY_UNVERIFIED"}
+    actions = build.get("actions", [])
+    if not isinstance(actions, list) or len(actions) < 3:
+        return {"log_diagnostic": "LOG_ACTION_UNAVAILABLE"}
+    step = actions[2]
+    if not isinstance(step, dict) or step.get("name") != "Verify Apple API authentication without changing apps or certificates":
+        return {"log_diagnostic": "LOG_ACTION_IDENTITY_UNVERIFIED"}
+    url = step.get("logUrl")
+    if not isinstance(url, str) or len(url) > 8192:
+        return {"log_diagnostic": "LOG_URL_UNAVAILABLE"}
+    parsed = urllib.parse.urlsplit(url)
+    if (parsed.scheme != "https" or parsed.username or parsed.password or parsed.port not in (None, 443)
+            or parsed.hostname not in ("storage.googleapis.com", "api.codemagic.io", "codemagic.io")
+            or parsed.fragment):
+        return {"log_diagnostic": "LOG_URL_REFUSED"}
+    # No token, raw logs or signed download URLs leave this transient request.
+    with download_opener.open(urllib.request.Request(url, method="GET"), timeout=15) as response:
+        raw = response.read(256 * 1024 + 1)
+    if len(raw) > 256 * 1024:
+        return {"log_diagnostic": "LOG_LIMIT"}
+    return {"log_diagnostic": "KNOWN_STEP_LOG_CLASSIFIED", **log_diagnostic(raw)}
+
+
 def inspect(token, opener=None, download_opener=None):
     result = {"status": "NOT_VERIFIED", "app_id": APP_ID, "build_id": BUILD, "build_commit": COMMIT,
               "private_key_used": False, "resources_modified": False, "builds_started": 0}
@@ -89,6 +144,8 @@ def inspect(token, opener=None, download_opener=None):
             return {**result, "diagnostic": "ARTIFACT_LIST_UNVERIFIED"}
         matching = [a for a in artifacts if isinstance(a, dict) and a.get("name") == NAME]
         result["report_artifact_count"] = len(matching)
+        if not matching:
+            return {**result, "status": "KNOWN_STEP_DIAGNOSTICS_READ", **read_known_log(token, opener, download_opener)}
         if len(matching) != 1 or not allowed_download(matching[0].get("short_lived_download_url")):
             return {**result, "diagnostic": "REPORT_ARTIFACT_UNAVAILABLE"}
         # Never forward the Codemagic token to artifact storage, redirects or logs.
@@ -119,7 +176,7 @@ def main():
         result["source_commit"] = source
     write_report(REPORT, result)
     print(result["status"])
-    return 0 if result["status"] == "KNOWN_APPLE_REPORT_READ" else 1
+    return 0 if result["status"] in ("KNOWN_APPLE_REPORT_READ", "KNOWN_STEP_DIAGNOSTICS_READ") else 1
 
 
 if __name__ == "__main__":
