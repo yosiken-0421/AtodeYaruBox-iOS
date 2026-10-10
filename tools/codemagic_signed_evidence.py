@@ -69,6 +69,17 @@ def sanitize(payload):
             if type(payload[key]) is not int or not 0 <= payload[key] <= 10000:
                 return None
             result[key] = payload[key]
+    if 'inventory_failure' in payload:
+        from tools.apple_provisioning_inventory import ERROR_CODES, PARAMETERS
+        failure = payload['inventory_failure']
+        if (payload['stage'] != 'inventory' or payload['status'] != 'NOT_VERIFIED'
+                or payload['apple_resources_modified'] is not False or not isinstance(failure, dict)
+                or set(failure) != {'relationship', 'apple_error_code', 'parameter'}
+                or failure.get('relationship') not in ('bundleIds', 'bundleIdCapabilities', 'profiles')
+                or not isinstance(failure.get('apple_error_code'), str) or failure['apple_error_code'] not in ERROR_CODES
+                or not isinstance(failure.get('parameter'), str) or failure['parameter'] not in PARAMETERS):
+            return None
+        result['inventory_failure'] = failure
     if 'bundle_ids_created' in payload:
         created = payload['bundle_ids_created']
         if (not isinstance(created, list) or any(type(i) is not str or i not in IDS for i in created)

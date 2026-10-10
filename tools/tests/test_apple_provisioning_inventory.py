@@ -2,6 +2,8 @@ from datetime import datetime, timedelta, timezone
 import io
 import json
 import unittest
+import urllib.error
+import urllib.parse
 from tools import apple_provisioning_inventory as m
 from tools import codemagic_signed_evidence as evidence
 from tools.apple_signing_preflight import CheckError, IDENTIFIERS
@@ -27,6 +29,44 @@ def profile(identifier):
 
 
 class Checks(unittest.TestCase):
+    def test_bad_request_retries_once_without_sparse_fields(self):
+        class SparseFailure(Transport):
+            def open(self, request, timeout):
+                self.requests.append(request)
+                if len(self.requests) == 1:
+                    raise urllib.error.HTTPError(request.full_url, 400, 'synthetic-private-message', {},
+                        io.BytesIO(b'{"errors":[{"code":"PARAMETER_ERROR.INVALID","source":{"parameter":"fields[profiles]"}}]}'))
+                return io.BytesIO(b'{"data": []}')
+        transport = SparseFailure()
+        self.assertEqual(m.RelatedReader('synthetic-token', mapping(), transport).get(IDENTIFIERS[0], 'profiles'), [])
+        self.assertEqual(len(transport.requests), 2)
+        self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(transport.requests[1].full_url).query), {'limit': ['200']})
+        self.assertTrue(all(r.method == 'GET' for r in transport.requests))
+
+    def test_failure_details_are_bounded_and_never_include_private_messages(self):
+        class Failed(Transport):
+            def open(self, request, timeout):
+                self.requests.append(request)
+                raise urllib.error.HTTPError(request.full_url, 400, 'synthetic-private-message', {},
+                    io.BytesIO(b'{"errors":[{"code":"synthetic-private-code","source":{"parameter":"synthetic-private-id"},"detail":"synthetic-secret-do-not-print"}]}'))
+        transport = Failed()
+        with self.assertRaises(m.InventoryError) as caught:
+            m.RelatedReader('synthetic-token', mapping(), transport).get(IDENTIFIERS[0], 'bundleIdCapabilities')
+        self.assertEqual(len(transport.requests), 2)
+        self.assertEqual(caught.exception.details, dict(relationship='bundleIdCapabilities', apple_error_code='UNKNOWN', parameter='UNKNOWN'))
+        self.assertNotIn('synthetic-private', json.dumps(caught.exception.details))
+        self.assertEqual(m.InventoryError('RESOURCE_HTTP_400', 'profiles', {}, []).details['apple_error_code'], 'UNKNOWN')
+
+    def test_permissions_failure_is_not_retried(self):
+        class Denied(Transport):
+            def open(self, request, timeout):
+                self.requests.append(request)
+                raise urllib.error.HTTPError(request.full_url, 403, 'private', {}, io.BytesIO(b'{}'))
+        transport = Denied()
+        with self.assertRaisesRegex(m.InventoryError, '^RESOURCE_HTTP_403$'):
+            m.RelatedReader('synthetic-token', mapping(), transport).get(IDENTIFIERS[0], 'profiles')
+        self.assertEqual(len(transport.requests), 1)
+
     def test_only_known_related_get_routes_are_requested(self):
         transport = Transport()
         reader = m.RelatedReader('synthetic-token', mapping(), transport)
@@ -89,6 +129,11 @@ class Checks(unittest.TestCase):
             provisioning_inventory=inventory, private='synthetic-secret-do-not-print')
         self.assertNotIn('synthetic-secret-do-not-print', json.dumps(evidence.sanitize(payload)))
         self.assertIsNone(evidence.sanitize(payload | {'apple_resources_modified': True}))
+        details = dict(relationship='profiles', apple_error_code='PARAMETER_ERROR.INVALID', parameter='fields[profiles]')
+        failed = payload | dict(status='NOT_VERIFIED', diagnostic='RESOURCE_HTTP_400', inventory_failure=details)
+        self.assertEqual(evidence.sanitize(failed)['inventory_failure'], details)
+        self.assertIsNone(evidence.sanitize(failed | {'inventory_failure': details | {'parameter': 'synthetic-private-id'}}))
+        self.assertIsNone(evidence.sanitize(failed | {'inventory_failure': details | {'apple_error_code': {}}}))
         inventory[IDENTIFIERS[0]]['profileContent'] = 'synthetic-secret-do-not-print'
         self.assertIsNone(evidence.sanitize(payload))
 

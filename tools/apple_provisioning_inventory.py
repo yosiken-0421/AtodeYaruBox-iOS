@@ -15,6 +15,34 @@ from tools.apple_signing_preflight import IDENTIFIERS, CheckError, NoRedirect, e
 from tools.apple_signing_resources import Client, resource_token
 
 GROUP = 'group.jp.atodeyarubox.app'
+ERROR_CODES = {'PARAMETER_ERROR.INVALID', 'PARAMETER_ERROR.UNKNOWN', 'PARAMETER_ERROR.REQUIRED',
+               'ENTITY_ERROR.ATTRIBUTE.INVALID', 'FORBIDDEN_ERROR', 'NOT_FOUND', 'STATE_ERROR', 'UNKNOWN'}
+PARAMETERS = {'fields[bundleIdCapabilities]', 'fields[profiles]', 'fields[bundleIds]',
+              'filter[identifier]', 'limit', 'UNKNOWN'}
+
+
+class InventoryError(CheckError):
+    def __init__(self, diagnostic, relationship, code='UNKNOWN', parameter='UNKNOWN'):
+        super().__init__(diagnostic)
+        self.details = dict(relationship=relationship,
+            apple_error_code=code if isinstance(code, str) and code in ERROR_CODES else 'UNKNOWN',
+            parameter=parameter if isinstance(parameter, str) and parameter in PARAMETERS else 'UNKNOWN')
+
+
+def related_error(error, relationship):
+    # Never expose Apple's messages, IDs, profile contents or request headers.
+    code, parameter = 'UNKNOWN', 'UNKNOWN'
+    try:
+        raw = error.read(16 * 1024 + 1)
+        if len(raw) <= 16 * 1024:
+            errors = json.loads(raw).get('errors')
+            if isinstance(errors, list) and errors and isinstance(errors[0], dict):
+                code = errors[0].get('code')
+                source = errors[0].get('source')
+                parameter = source.get('parameter') if isinstance(source, dict) else 'UNKNOWN'
+    except Exception:
+        pass
+    return InventoryError('RESOURCE_HTTP_' + str(int(error.code)), relationship, code, parameter)
 
 
 class RelatedReader:
@@ -32,6 +60,16 @@ class RelatedReader:
         query = ({'fields[bundleIdCapabilities]': 'capabilityType,settings', 'limit': 200}
                  if relationship == 'bundleIdCapabilities' else
                  {'fields[profiles]': 'profileType,profileState,profileContent,expirationDate', 'limit': 200})
+        try:
+            return self._read(identifier, relationship, query)
+        except InventoryError as error:
+            if str(error) != 'RESOURCE_HTTP_400':
+                raise
+            # Sparse fields are optional in Apple's documented API. A single
+            # GET without them handles service/schema drift without changing data.
+            return self._read(identifier, relationship, {'limit': 200})
+
+    def _read(self, identifier, relationship, query):
         url = ('https://api.appstoreconnect.apple.com/v1/bundleIds/' + self.identifiers[identifier]
             + '/' + relationship + '?' + urllib.parse.urlencode(query))
         request = urllib.request.Request(url, method='GET', headers={'Authorization': 'Bearer ' + self.token})
@@ -42,7 +80,7 @@ class RelatedReader:
                 raise CheckError('INVENTORY_RESPONSE_LIMIT')
             return rows(json.loads(raw))
         except urllib.error.HTTPError as error:
-            raise CheckError('RESOURCE_HTTP_' + str(int(error.code))) from None
+            raise related_error(error, relationship) from None
         except (urllib.error.URLError, OSError, TimeoutError, ValueError):
             raise CheckError('INVENTORY_READ_UNAVAILABLE') from None
 
@@ -99,8 +137,17 @@ def inspect(environment):
     client = Client(token, '')
     identifiers = {}
     for identifier in IDENTIFIERS:
-        exact = exact_bundle_rows(rows(client.request('/v1/bundleIds', query={'filter[identifier]': identifier,
-            'fields[bundleIds]': 'identifier,platform,seedId', 'limit': 200})), identifier)
+        try:
+            response = client.request('/v1/bundleIds', query={'filter[identifier]': identifier,
+                'fields[bundleIds]': 'identifier,platform,seedId', 'limit': 200})
+        except CheckError as error:
+            if str(error) != 'RESOURCE_HTTP_400':
+                raise InventoryError(str(error), 'bundleIds') from None
+            try:
+                response = client.request('/v1/bundleIds', query={'filter[identifier]': identifier, 'limit': 200})
+            except CheckError as retry_error:
+                raise InventoryError(str(retry_error), 'bundleIds') from None
+        exact = exact_bundle_rows(rows(response), identifier)
         if len(exact) != 1:
             raise CheckError('INVENTORY_TASK_IDENTIFIER_MISSING')
         identifiers[identifier] = exact[0].get('id')

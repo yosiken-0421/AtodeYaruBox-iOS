@@ -130,10 +130,12 @@ def main():
         record()
         return 1
     if sys.argv[1:] == ['--inspect-provisioning']:
-        from tools.apple_provisioning_inventory import inspect
+        from tools.apple_provisioning_inventory import inspect, InventoryError
         result['stage'] = 'inventory'
         try:
             result.update(status='SIGNING_INVENTORY_READ', provisioning_inventory=inspect(os.environ))
+        except InventoryError as error:
+            result.update(status='NOT_VERIFIED', diagnostic=str(error), inventory_failure=error.details)
         except CheckError as error:
             result.update(status='NOT_VERIFIED', diagnostic=str(error))
         except Exception:
