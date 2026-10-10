@@ -24,6 +24,26 @@ def profile():
 
 
 class Tests(unittest.TestCase):
+    def test_ephemeral_identity_requires_its_password_and_preserves_matching_key(self):
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.serialization import pkcs12
+        from cryptography.x509.oid import NameOID
+        from tools.codemagic_signing_key import make_key
+        key = resources.load_key(make_key())
+        subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'Synthetic test identity')])
+        now = datetime.now(timezone.utc)
+        certificate = (x509.CertificateBuilder().subject_name(subject).issuer_name(subject)
+            .public_key(key.public_key()).serial_number(x509.random_serial_number())
+            .not_valid_before(now).not_valid_after(now + timedelta(days=1)).sign(key, hashes.SHA256()))
+        payload = archive.identity_container(key, certificate, 'synthetic-passphrase-not-a-credential')
+        loaded, cert, _ = pkcs12.load_key_and_certificates(payload, b'synthetic-passphrase-not-a-credential')
+        self.assertEqual(loaded.private_numbers(), key.private_numbers())
+        self.assertEqual(cert.public_bytes(serialization.Encoding.DER), certificate.public_bytes(serialization.Encoding.DER))
+        for password in (None, b'wrong-synthetic-password'):
+            with self.assertRaises(ValueError):
+                pkcs12.load_key_and_certificates(payload, password)
+
     def test_only_three_known_bundle_payloads_are_allowed(self):
         for identifier in IDENTIFIERS:
             t = Transport({})
@@ -112,6 +132,8 @@ class Tests(unittest.TestCase):
         self.assertEqual(archive.classify_build_failure(private + b' no devices registered'), 'DEVELOPMENT_PROFILE_DEVICE_REQUIRED')
         self.assertEqual(archive.classify_build_failure(private + b' com.apple.security.application-groups'), 'PROFILE_APP_GROUP_SETUP_REQUIRED')
         self.assertNotIn(private.decode(), archive.classify_build_failure(private))
+        self.assertEqual(archive.classify_command_failure('keychain_import', private + b' MAC verification failed'), 'PKCS12_COMPATIBILITY_REQUIRED')
+        self.assertNotIn(private.decode(), archive.classify_command_failure('keychain_import', private))
 
 
 if __name__ == '__main__':

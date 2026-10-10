@@ -22,6 +22,19 @@ TARGETS = ('AtodeYaruBox', 'BoxShare', 'BoxWidgets')
 REPORT = ROOT / 'artifacts/signed-package-result.json'
 
 
+def identity_container(key, certificate, password):
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.serialization import PrivateFormat, pkcs12
+    # Use the documented macOS compatibility format after CI import failed.
+    # The file exists
+    # only in a mode-0700 ephemeral CI folder and is never an artifact or backup.
+    # https://cryptography.io/en/50.0.2/hazmat/primitives/asymmetric/serialization/
+    encryption = (PrivateFormat.PKCS12.encryption_builder().kdf_rounds(50000)
+        .key_cert_algorithm(pkcs12.PBES.PBESv1SHA1And3KeyTripleDESCBC)
+        .hmac_hash(hashes.SHA1()).build(password.encode('ascii')))
+    return pkcs12.serialize_key_and_certificates(b'AtodeYaruBox', key, certificate, None, encryption)
+
+
 def export_options(team):
     if not isinstance(team, str) or not re.fullmatch(r'[A-Z0-9]{10}', team):
         raise CheckError('TEAM_IDENTIFIER_INVALID')
@@ -60,6 +73,15 @@ def classify_build_failure(raw):
     if 'permission' in text or 'forbidden' in text:
         return 'SIGNING_PERMISSION_REQUIRED'
     return 'SIGNED_BUILD_FAILED'
+
+
+def classify_command_failure(stage, raw):
+    if stage in ('archive', 'export'):
+        return classify_build_failure(raw)
+    text = raw.decode('utf-8', errors='replace').lower()
+    if stage == 'keychain_import' and ('mac verification failed' in text or 'pkcs12' in text and 'decode' in text):
+        return 'PKCS12_COMPATIBILITY_REQUIRED'
+    return 'COMMAND_FAILED'
 
 
 def verify_product(app, team, distribution, runner):
@@ -122,7 +144,7 @@ def main():
             result['compile_errors'] = len(re.findall(rb':\d+:\d+:\s+error:', p.stdout + p.stderr))
             result['compiler_warnings'] = len(re.findall(rb':\d+:\d+:\s+warning:', p.stdout + p.stderr))
         if p.returncode:
-            raise CheckError(classify_build_failure(p.stdout + p.stderr) if stage in ('archive', 'export') else 'COMMAND_FAILED')
+            raise CheckError(classify_command_failure(stage, p.stdout + p.stderr))
         return p.stdout
     try:
         with tempfile.TemporaryDirectory(prefix='atode-signing-') as directory:
@@ -130,9 +152,9 @@ def main():
             key, certificate, team, metadata = prepare(os.environ, checkpoint)
             result.update(metadata)
             record()
-            from cryptography.hazmat.primitives.serialization import pkcs12, NoEncryption
             identity = folder / 'identity.p12'
-            identity.write_bytes(pkcs12.serialize_key_and_certificates(b'AtodeYaruBox', key, certificate, None, NoEncryption()))
+            identity_password = secrets.token_urlsafe(32)
+            identity.write_bytes(identity_container(key, certificate, identity_password))
             identity.chmod(0o600)
             api_key = folder / 'AuthKey.p8'
             api_key.write_text(normalize_private_key(os.environ.get('APP_STORE_CONNECT_PRIVATE_KEY'))[0], encoding='utf-8')
@@ -145,7 +167,8 @@ def main():
             previous = run(['security', 'list-keychains', '-d', 'user'], 'keychain_read').decode()
             previous_paths = re.findall(r'"([^"\n]+)"', previous)
             run(['security', 'list-keychains', '-d', 'user', '-s', str(keychain)] + previous_paths, 'keychain_search')
-            run(['security', 'import', str(identity), '-k', str(keychain), '-P', '', '-T', '/usr/bin/codesign', '-T', '/usr/bin/security'], 'keychain_import')
+            run(['security', 'import', str(identity), '-k', str(keychain), '-f', 'pkcs12', '-P', identity_password,
+                 '-T', '/usr/bin/codesign', '-T', '/usr/bin/security'], 'keychain_import')
             run(['security', 'set-key-partition-list', '-S', 'apple-tool:,apple:,codesign:', '-s', '-k', password, str(keychain)], 'keychain_partition')
             generate_project.main()
             # Add signing metadata only to the generated CI project; the verified
