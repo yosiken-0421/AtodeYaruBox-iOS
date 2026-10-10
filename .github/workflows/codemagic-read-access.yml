@@ -97,7 +97,7 @@
         {
           "name": "Show sanitized access result",
           "if": "always()",
-          "run": "python3 -c \"from pathlib import Path; [print(p.read_text()) for p in (Path('artifacts/codemagic-read-access.json'), Path('artifacts/codemagic-integration-read.json'), Path('artifacts/codemagic-alias-variable.json'), Path('artifacts/codemagic-apple-evidence.json artifacts/codemagic-signing-key.json')) if p.exists()]\""
+          "run": "python3 -c \"from pathlib import Path; [print(p.read_text()) for p in (Path('artifacts/codemagic-read-access.json'), Path('artifacts/codemagic-integration-read.json'), Path('artifacts/codemagic-alias-variable.json'), Path('artifacts/codemagic-apple-evidence.json'), Path('artifacts/codemagic-signing-key.json')) if p.exists()]\""
         }
       ]
     }
