@@ -22,7 +22,7 @@ BOOLS = ('signed_archive_verified', 'signed_ipa_verified', 'apple_resources_modi
          'binary_uploaded', 'billing_modified', 'private_key_disclosed', 'native_tests_repeated',
          'all_three_bundle_ids_available', 'distribution_certificate_created',
          'matching_certificate_key_verified', 'team_identifier_verified')
-STAGES = {'preflight', 'inventory', 'profile_prepare', 'BUNDLE_ID_POST_RESERVED', 'CERTIFICATE_POST_RESERVED', 'AUTOMATIC_SIGNING_RESERVED',
+STAGES = {'preflight', 'inventory', 'profile_prepare', 'profile_install', 'MANUAL_SIGNING_PREPARED', 'BUNDLE_ID_POST_RESERVED', 'CERTIFICATE_POST_RESERVED', 'AUTOMATIC_SIGNING_RESERVED',
           'keychain_create', 'keychain_settings', 'keychain_unlock', 'keychain_read', 'keychain_search',
           'keychain_import', 'keychain_partition', 'archive', 'signature_verify', 'profile_decode',
           'entitlements_read', 'export', 'complete'}
@@ -44,7 +44,8 @@ DIAGNOSTICS = APPLE_DIAGNOSTICS | {
     'PROFILE_RESOURCE_ID_UNVERIFIED', 'PROFILE_ROUTE_REFUSED', 'PROFILE_ROUTE_OR_REPLAY_REFUSED',
     'PROFILE_RESPONSE_LIMIT', 'PROFILE_CREATION_OUTCOME_UNVERIFIED', 'PROFILE_REQUEST_OUTCOME_UNAVAILABLE',
     'APP_GROUP_PROFILE_ASSIGNMENT_REQUIRED', 'PROFILE_CERTIFICATE_MISMATCH', 'PROFILE_OWNED_MATCH_AMBIGUOUS',
-    'PROFILE_PREPARATION_UNAVAILABLE'}
+    'PROFILE_PREPARATION_UNAVAILABLE', 'PROFILE_NAME_OR_UUID_UNVERIFIED', 'PROFILE_INSTALL_COLLISION',
+    'MANUAL_SIGNING_MATERIAL_UNVERIFIED', 'MANUAL_SIGNING_TARGET_MISMATCH'}
 
 
 def sanitize(payload):

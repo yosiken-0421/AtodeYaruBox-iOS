@@ -2,6 +2,9 @@ from datetime import datetime, timedelta, timezone
 import io
 import json
 import unittest
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 from tools import apple_signing_resources as resources
 from tools import signed_archive as archive
 from tools.apple_signing_preflight import CheckError, IDENTIFIERS
@@ -24,6 +27,48 @@ def profile():
 
 
 class Tests(unittest.TestCase):
+    def test_manual_signing_uses_exact_three_distinct_profiles_and_matching_identity(self):
+        materials = {identifier: {'uuid': str(i) * 8 + '-' + str(i) * 4 + '-' + str(i) * 4 + '-' + str(i) * 4 + '-' + str(i) * 12}
+            for i, identifier in enumerate(IDENTIFIERS, 1)}
+        settings = archive.manual_settings('DEMO123456', materials, 'a' * 40)
+        self.assertEqual(set(settings), set(IDENTIFIERS))
+        for identifier, value in settings.items():
+            self.assertEqual(value['CODE_SIGN_STYLE'], 'Manual')
+            self.assertEqual(value['PROVISIONING_PROFILE_SPECIFIER'], materials[identifier]['uuid'])
+            self.assertEqual(value['CODE_SIGN_IDENTITY'], 'a' * 40)
+
+    def test_manual_export_stays_internal_and_export_only(self):
+        materials = {identifier: {'uuid': str(i) * 8 + '-' + str(i) * 4 + '-' + str(i) * 4 + '-' + str(i) * 4 + '-' + str(i) * 12}
+            for i, identifier in enumerate(IDENTIFIERS, 1)}
+        options = archive.export_options('DEMO123456', materials, 'b' * 40)
+        self.assertEqual(options['signingStyle'], 'manual')
+        self.assertEqual(options['provisioningProfiles'], {key: value['uuid'] for key, value in materials.items()})
+        self.assertEqual(options['destination'], 'export')
+        self.assertTrue(options['testFlightInternalTestingOnly'])
+        self.assertFalse(options['uploadSymbols'])
+
+    def test_manual_signing_refuses_missing_duplicate_or_arbitrary_profile_paths(self):
+        duplicate = {identifier: {'uuid': '11111111-1111-1111-1111-111111111111'} for identifier in IDENTIFIERS}
+        invalid = {identifier: {'uuid': '../private'} for identifier in IDENTIFIERS}
+        for materials in ({}, duplicate, invalid):
+            with self.assertRaisesRegex(CheckError, '^MANUAL_SIGNING_MATERIAL_UNVERIFIED$'):
+                archive.manual_settings('DEMO123456', materials, 'a' * 40)
+
+    def test_ci_profile_installation_is_private_and_never_overwrites(self):
+        materials = {identifier: {'uuid': str(i) * 8 + '-' + str(i) * 4 + '-' + str(i) * 4 + '-' + str(i) * 4 + '-' + str(i) * 12,
+            'content': b'synthetic-cms'} for i, identifier in enumerate(IDENTIFIERS, 1)}
+        with tempfile.TemporaryDirectory() as directory, patch.object(archive.Path, 'home', return_value=Path(directory)):
+            archive.install_profiles(materials)
+            archive.install_profiles(materials)
+            folder = Path(directory) / 'Library/Developer/Xcode/UserData/Provisioning Profiles'
+            self.assertEqual(len(list(folder.glob('*.mobileprovision'))), 3)
+            material = materials[IDENTIFIERS[0]]
+            path = folder / (material['uuid'] + '.mobileprovision')
+            path.write_bytes(b'existing-other-content')
+            with self.assertRaisesRegex(CheckError, '^PROFILE_INSTALL_COLLISION$'):
+                archive.install_profiles(materials)
+            self.assertEqual(path.read_bytes(), b'existing-other-content')
+
     def test_ephemeral_identity_requires_its_password_and_preserves_matching_key(self):
         from cryptography import x509
         from cryptography.hazmat.primitives import hashes, serialization

@@ -1,8 +1,10 @@
 # CodemagicとAppleへの接続確認
 
-現在は本人のApple Developer管理画面で共有領域を関連付ける操作待ちです。[配布用Profile準備の実結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38038157654)では、実Macの補助50件成功後、App Store用Profileを1件作成できました。しかし`group.jp.atodeyarubox.app`が含まれず、`APP_GROUP_PROFILE_ASSIGNMENT_REQUIRED`で検証が停止しました。未検証の署名済みIPAを完成扱いしません。
+本人から共有領域の登録と、本体・共有拡張・Widgetの3つへの関連付け保存が完了したとの報告を受け取りました。次はAI側で更新後の配布用Profileを取得し、実際の共有権限を照合して署名します。まだ署名済みIPAは未検証です。[直前の実結果](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38038157654)では補助50件成功、初回Profileは共有領域が欠けて停止しました。
 
-自動署名と配布用Profile APIの両方を試したうえで、[Appleが案内するApp Groupsの関連付け](https://developer.apple.com/help/account/identifiers/enable-app-capabilities/)が必要です。公開APIの[CapabilitySetting](https://developer.apple.com/documentation/appstoreconnectapi/capabilitysetting)に共有領域の選択項目はなく、本人のiPhoneのログイン済み管理画面をAIから操作できません。次の本人操作は`jp.atodeyarubox.app`本体だけの関連付けとし、拡張の操作はまとめて依頼しません。キー再作成、証明書削除、有料契約、スクリーンショット提出は不要です。作成済みProfileは削除せず、関連付け完了後に更新した許可情報をAI側で準備・検証します。新しいMacジョブは未予約です。
+[Apple公式手順](https://developer.apple.com/help/account/identifiers/enable-app-capabilities/)ではApp IDを変更した後のProfile更新が必要です。古い専用Profileを残したまま、固定名の`v2`を1件ずつ作成し、既存の`v2`があれば再利用します。自動的な次版作成や削除は行いません。既存の証明書・鍵・Teamと3つのBundle ID、共有領域、期限、端末登録不要のApp Store用Profileであることを厳密に照合します。
+
+補助109件が成功しました。[配布証明書とProfileを指定する署名方式](https://docs.codemagic.io/partials/alternative-code-signing-methods-ios/)を、CI生成の各ターゲットへ適用します。アプリのSwiftコード・既存プロジェクト生成器はネイティブ86件成功時と同一です。無料枠と有料契約なしを直前に再確認してから、専用の非公開CIを最大20分で1回だけ起動します。署名済みArchiveとIPAに含まれる本体・拡張2つを検証し、バイナリのAppleへの送信は含めません。キー再作成や追加の本人操作は現在不要です。
 
 最新の署名処理では、IDと配布証明書の再利用、証明書のMac取り込みが成功しました。補助37件成功・Compile Error 0・コンパイラWarning 0で、ArchiveのProfile設定が停止箇所です。[実MacでのGET専用照合](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38037634619)は補助46件とAppleへの照合が成功し、3つのIDすべてでAPP_GROUPSが有効、Profileは0件でした。共有領域そのものの登録・関連付けまではこのAPIでは確認できません。
 

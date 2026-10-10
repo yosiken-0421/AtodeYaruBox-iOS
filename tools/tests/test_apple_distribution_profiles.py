@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import io
+import base64
 import json
 import unittest
 import urllib.error
@@ -22,6 +23,54 @@ def profile():
 
 
 class Checks(unittest.TestCase):
+    def test_owner_refresh_uses_one_fixed_revision_and_preserves_old_profile(self):
+        name = m.REFRESHED_NAMES[IDENTIFIERS[0]]
+        old = {'attributes': {'name': m.NAMES[IDENTIFIERS[0]], 'profileState': 'INVALID'}}
+        entry = {'attributes': {'name': name, 'profileType': 'IOS_APP_STORE', 'profileState': 'ACTIVE',
+            'profileContent': base64.b64encode(CERT).decode()}}
+        class Creator:
+            calls = 0
+            def create(self, identifier):
+                self.calls += 1
+                return entry
+        creator = Creator()
+        decoded = profile() | {'Name': name, 'UUID': '11111111-1111-1111-1111-111111111111'}
+        material = m.select_material([old], IDENTIFIERS[0], creator, CERT, TEAM, True, lambda _: decoded)
+        self.assertEqual(creator.calls, 1)
+        self.assertEqual(material['content'], CERT)
+        self.assertEqual(old['attributes']['profileState'], 'INVALID')
+        self.assertEqual(m.body(IDENTIFIERS[0], 'DEMOID0001', 'DEMOCERT01', True)['data']['attributes']['name'], name)
+
+    def test_valid_revision_reused_and_invalid_revision_never_replaced_again(self):
+        name = m.REFRESHED_NAMES[IDENTIFIERS[0]]
+        entry = {'attributes': {'name': name, 'profileType': 'IOS_APP_STORE', 'profileState': 'ACTIVE',
+            'profileContent': base64.b64encode(CERT).decode()}}
+        class Creator:
+            def create(self, identifier):
+                raise AssertionError('Existing revision must not trigger POST')
+        decoded = profile() | {'Name': name, 'UUID': '11111111-1111-1111-1111-111111111111'}
+        m.select_material([entry], IDENTIFIERS[0], Creator(), CERT, TEAM, True, lambda _: decoded)
+        entry['attributes']['profileState'] = 'INVALID'
+        with self.assertRaisesRegex(CheckError, '^PROFILE_NOT_APP_STORE_DISTRIBUTION$'):
+            m.select_material([entry], IDENTIFIERS[0], Creator(), CERT, TEAM, True, lambda _: decoded)
+
+    def test_duplicate_revision_refused_before_mutation(self):
+        entry = {'attributes': {'name': m.REFRESHED_NAMES[IDENTIFIERS[0]]}}
+        class Creator:
+            def create(self, identifier):
+                raise AssertionError('Ambiguity must not trigger POST')
+        with self.assertRaisesRegex(CheckError, '^PROFILE_OWNED_MATCH_AMBIGUOUS$'):
+            m.select_material([entry, entry], IDENTIFIERS[0], Creator(), CERT, TEAM, True)
+
+    def test_installed_profile_requires_matching_name_and_safe_uuid(self):
+        name = m.REFRESHED_NAMES[IDENTIFIERS[0]]
+        entry = {'attributes': {'name': name, 'profileType': 'IOS_APP_STORE', 'profileState': 'ACTIVE',
+            'profileContent': base64.b64encode(CERT).decode()}}
+        for value in ({'Name': 'unrelated', 'UUID': '11111111-1111-1111-1111-111111111111'},
+                {'Name': name, 'UUID': '../arbitrary-file'}):
+            with self.assertRaisesRegex(CheckError, '^PROFILE_NAME_OR_UUID_UNVERIFIED$'):
+                m.select_material([entry], IDENTIFIERS[0], None, CERT, TEAM, True, lambda _: profile() | value)
+
     def test_only_exact_task_certificate_and_no_device_payload_can_be_created(self):
         class Transport:
             requests = []

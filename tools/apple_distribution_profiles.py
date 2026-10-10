@@ -10,6 +10,7 @@ from tools.apple_signing_resources import Client, certificate_query, prepare, re
 from tools.apple_provisioning_inventory import RelatedReader, decode_profile
 
 NAMES = dict(zip(IDENTIFIERS, ('AtodeYaruBox CI App Store', 'AtodeYaruBox Share CI App Store', 'AtodeYaruBox Widgets CI App Store')))
+REFRESHED_NAMES = {identifier: name + ' v2' for identifier, name in NAMES.items()}
 
 
 def resource_id(value):
@@ -18,25 +19,26 @@ def resource_id(value):
     return value
 
 
-def body(identifier, bundle, certificate):
+def body(identifier, bundle, certificate, refreshed=False):
     if identifier not in IDENTIFIERS:
         raise CheckError('PROFILE_ROUTE_REFUSED')
-    return {'data': {'type': 'profiles', 'attributes': {'name': NAMES[identifier], 'profileType': 'IOS_APP_STORE'},
+    return {'data': {'type': 'profiles', 'attributes': {'name': (REFRESHED_NAMES if refreshed else NAMES)[identifier], 'profileType': 'IOS_APP_STORE'},
         'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': resource_id(bundle)}},
             'certificates': {'data': [{'type': 'certificates', 'id': resource_id(certificate)}]}}}}
 
 
 class Creator:
-    def __init__(self, token, identifiers, certificate, checkpoint, opener=None):
+    def __init__(self, token, identifiers, certificate, checkpoint, opener=None, refreshed=False):
         RelatedReader(token, identifiers)  # Validate exact task mapping and IDs.
         self.token, self.identifiers, self.certificate = token, identifiers, resource_id(certificate)
         self.checkpoint, self.attempted = checkpoint, set()
+        self.refreshed = refreshed
         self.opener = opener or urllib.request.build_opener(NoRedirect())
 
     def create(self, identifier):
         if identifier not in self.identifiers or identifier in self.attempted:
             raise CheckError('PROFILE_ROUTE_OR_REPLAY_REFUSED')
-        payload = body(identifier, self.identifiers[identifier], self.certificate)
+        payload = body(identifier, self.identifiers[identifier], self.certificate, self.refreshed)
         self.attempted.add(identifier)
         self.checkpoint('PROFILE_POST_RESERVED')
         request = urllib.request.Request('https://api.appstoreconnect.apple.com/v1/profiles', method='POST',
@@ -71,9 +73,33 @@ def verify_profile(entry, identifier, certificate_der, team, decoder=decode_prof
     return profile
 
 
-def prepare_distribution(environment, checkpoint):
+def select_material(entries, identifier, creator, certificate_der, team, refreshed=False, decoder=decode_profile):
+    # A bounded v2 name refreshes permissions after the owner changed App IDs.
+    # Old profiles stay untouched. Re-running reuses v2; it never invents v3.
+    name = (REFRESHED_NAMES if refreshed else NAMES)[identifier]
+    existing = [e for e in entries if e.get('attributes', {}).get('name') == name]
+    if len(existing) > 1:
+        raise CheckError('PROFILE_OWNED_MATCH_AMBIGUOUS')
+    entry = existing[0] if existing else creator.create(identifier)
+    if entry.get('attributes', {}).get('name') != name:
+        raise CheckError('PROFILE_NAME_OR_UUID_UNVERIFIED')
+    profile = verify_profile(entry, identifier, certificate_der, team, decoder)
+    uuid = profile.get('UUID')
+    if (profile.get('Name') != name or not isinstance(uuid, str)
+            or not re.fullmatch(r'[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}', uuid)):
+        raise CheckError('PROFILE_NAME_OR_UUID_UNVERIFIED')
+    try:
+        content = base64.b64decode(entry['attributes']['profileContent'], validate=True)
+    except (ValueError, TypeError, KeyError):
+        raise CheckError('PROFILE_CONTENT_INVALID') from None
+    if not 1 <= len(content) <= 512 * 1024:
+        raise CheckError('PROFILE_RESPONSE_LIMIT')
+    return dict(uuid=uuid, name=name, content=content)
+
+
+def prepare_material(environment, checkpoint, refreshed=False):
     from cryptography.hazmat.primitives.serialization import Encoding
-    _, certificate, team, _ = prepare(environment, allow_create=False)
+    key, certificate, team, metadata = prepare(environment, allow_create=False)
     certificate_der = certificate.public_bytes(Encoding.DER)
     token = resource_token(environment)
     client = Client(token, '')
@@ -88,14 +114,15 @@ def prepare_distribution(environment, checkpoint):
         if e['attributes'].get('certificateContent') == base64.b64encode(certificate_der).decode('ascii')]
     if len(matches) != 1:
         raise CheckError('MATCHING_CERTIFICATE_AMBIGUOUS')
-    creator = Creator(token, identifiers, matches[0].get('id'), checkpoint)
+    creator = Creator(token, identifiers, matches[0].get('id'), checkpoint, refreshed=refreshed)
     reader = RelatedReader(token, identifiers)
-    verified = 0
+    materials = {}
     for identifier in IDENTIFIERS:
-        existing = [e for e in reader.get(identifier, 'profiles') if e['attributes'].get('name') == NAMES[identifier]]
-        if len(existing) > 1:
-            raise CheckError('PROFILE_OWNED_MATCH_AMBIGUOUS')
-        entry = existing[0] if existing else creator.create(identifier)
-        verify_profile(entry, identifier, certificate_der, team)
-        verified += 1
-    return dict(distribution_profiles_verified=verified == 3, verified_distribution_profiles=verified)
+        materials[identifier] = select_material(reader.get(identifier, 'profiles'), identifier,
+            creator, certificate_der, team, refreshed)
+    return key, certificate, team, metadata, materials
+
+
+def prepare_distribution(environment, checkpoint):
+    _, _, _, _, materials = prepare_material(environment, checkpoint)
+    return dict(distribution_profiles_verified=len(materials) == 3, verified_distribution_profiles=len(materials))

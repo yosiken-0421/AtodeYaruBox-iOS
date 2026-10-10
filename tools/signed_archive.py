@@ -36,12 +36,53 @@ def identity_container(key, certificate, password):
     return pkcs12.serialize_key_and_certificates(b'AtodeYaruBox', key, certificate, None, encryption)
 
 
-def export_options(team):
+def manual_settings(team, materials, certificate_sha1):
     if not isinstance(team, str) or not re.fullmatch(r'[A-Z0-9]{10}', team):
         raise CheckError('TEAM_IDENTIFIER_INVALID')
-    return dict(method='app-store-connect', destination='export', signingStyle='automatic',
+    if (not isinstance(materials, dict) or set(materials) != set(IDENTIFIERS)
+            or not isinstance(certificate_sha1, str) or not re.fullmatch(r'[0-9a-f]{40}', certificate_sha1)):
+        raise CheckError('MANUAL_SIGNING_MATERIAL_UNVERIFIED')
+    result = {}
+    uuids = set()
+    for identifier in IDENTIFIERS:
+        value = materials[identifier].get('uuid')
+        if (not isinstance(value, str) or not re.fullmatch(r'[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}', value)
+                or value.lower() in uuids):
+            raise CheckError('MANUAL_SIGNING_MATERIAL_UNVERIFIED')
+        uuids.add(value.lower())
+        result[identifier] = dict(DEVELOPMENT_TEAM=team, CODE_SIGN_STYLE='Manual',
+            CODE_SIGN_IDENTITY=certificate_sha1, PROVISIONING_PROFILE_SPECIFIER=value,
+            CODE_SIGNING_ALLOWED='YES', CODE_SIGNING_REQUIRED='YES')
+    return result
+
+
+def export_options(team, materials=None, certificate_sha1=None):
+    if not isinstance(team, str) or not re.fullmatch(r'[A-Z0-9]{10}', team):
+        raise CheckError('TEAM_IDENTIFIER_INVALID')
+    options = dict(method='app-store-connect', destination='export', signingStyle='automatic',
                 teamID=team, manageAppVersionAndBuildNumber=False, uploadSymbols=False,
                 testFlightInternalTestingOnly=True)
+    if materials is not None:
+        settings = manual_settings(team, materials, certificate_sha1)
+        options.update(signingStyle='manual', signingCertificate=certificate_sha1,
+            provisioningProfiles={identifier: settings[identifier]['PROVISIONING_PROFILE_SPECIFIER'] for identifier in IDENTIFIERS})
+    return options
+
+
+def install_profiles(materials):
+    # Xcode 16+ uses this CI user's private directory. Never overwrite files.
+    folder = Path.home() / 'Library/Developer/Xcode/UserData/Provisioning Profiles'
+    folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+    for identifier in IDENTIFIERS:
+        material = materials[identifier]
+        path = folder / (material['uuid'] + '.mobileprovision')
+        if path.exists():
+            if path.read_bytes() != material['content']:
+                raise CheckError('PROFILE_INSTALL_COLLISION')
+        else:
+            with path.open('xb') as stream:
+                stream.write(material['content'])
+            path.chmod(0o600)
 
 
 def validate_profile(profile, identifier, team, distribution=False):
@@ -85,7 +126,7 @@ def classify_command_failure(stage, raw):
     return 'COMMAND_FAILED'
 
 
-def verify_product(app, team, distribution, runner):
+def verify_product(app, team, distribution, runner, certificate_der=None):
     bundles = (app, app / 'PlugIns/BoxShare.appex', app / 'PlugIns/BoxWidgets.appex')
     for bundle, identifier in zip(bundles, IDENTIFIERS):
         try:
@@ -101,6 +142,8 @@ def verify_product(app, team, distribution, runner):
         except Exception:
             raise CheckError('PROFILE_CONTENT_INVALID') from None
         validate_profile(profile, identifier, team, distribution)
+        if certificate_der is not None and profile.get('DeveloperCertificates') != [certificate_der]:
+            raise CheckError('PROFILE_CERTIFICATE_MISMATCH')
         signed_entitlements = runner(['codesign', '-d', '--entitlements', ':-', str(bundle)], stage='entitlements_read')
         try:
             signed = plistlib.loads(signed_entitlements)
@@ -161,7 +204,8 @@ def main():
         record()
         print(json.dumps(result))
         return 0 if result['status'] == 'DISTRIBUTION_PROFILES_VERIFIED' else 1
-    if sys.argv[1:]:
+    manual = sys.argv[1:] == ['--manual-distribution-refresh']
+    if sys.argv[1:] and not manual:
         result.update(status='NOT_VERIFIED', diagnostic='UNAPPROVED_SIGNING_MODE')
         record()
         return 1
@@ -186,16 +230,40 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix='atode-signing-') as directory:
             folder = Path(directory)
-            key, certificate, team, metadata = prepare(os.environ, checkpoint)
+            materials, certificate_der, certificate_sha1 = None, None, None
+            if manual:
+                from tools.apple_distribution_profiles import prepare_material
+                from cryptography.hazmat.primitives.serialization import Encoding
+                result.update(stage='profile_prepare', profiles_created_count=0)
+                def profile_checkpoint(stage):
+                    result.update(stage='profile_prepare', apple_resources_modified=True)
+                    if stage == 'PROFILE_CREATED':
+                        result['profiles_created_count'] += 1
+                    record()
+                key, certificate, team, metadata, materials = prepare_material(os.environ, profile_checkpoint, refreshed=True)
+                certificate_der = certificate.public_bytes(Encoding.DER)
+                certificate_sha1 = hashlib.sha1(certificate_der).hexdigest()
+                result.update(distribution_profiles_verified=True, verified_distribution_profiles=3)
+                result['stage'] = 'profile_install'
+                record()
+                manual_settings(team, materials, certificate_sha1)
+                install_profiles(materials)
+            else:
+                key, certificate, team, metadata = prepare(os.environ, checkpoint)
             result.update(metadata)
             record()
             identity = folder / 'identity.p12'
             identity_password = secrets.token_urlsafe(32)
             identity.write_bytes(identity_container(key, certificate, identity_password))
             identity.chmod(0o600)
-            api_key = folder / 'AuthKey.p8'
-            api_key.write_text(normalize_private_key(os.environ.get('APP_STORE_CONNECT_PRIVATE_KEY'))[0], encoding='utf-8')
-            api_key.chmod(0o600)
+            authentication = []
+            if not manual:
+                api_key = folder / 'AuthKey.p8'
+                api_key.write_text(normalize_private_key(os.environ.get('APP_STORE_CONNECT_PRIVATE_KEY'))[0], encoding='utf-8')
+                api_key.chmod(0o600)
+                authentication = ['-allowProvisioningUpdates', '-authenticationKeyPath', str(api_key),
+                    '-authenticationKeyID', os.environ['APP_STORE_CONNECT_KEY_IDENTIFIER'],
+                    '-authenticationKeyIssuerID', os.environ['APP_STORE_CONNECT_ISSUER_ID']]
             keychain = folder / 'signing.keychain-db'
             password = secrets.token_urlsafe(32)
             run(['security', 'create-keychain', '-p', password, str(keychain)], 'keychain_create')
@@ -213,26 +281,37 @@ def main():
             project = generate_project.OBJECTS[generate_project.uid('project')]
             project['attributes']['TargetAttributes'] = {
                 generate_project.uid('target:' + name): {'DevelopmentTeam': team,
-                    'ProvisioningStyle': 'Automatic',
+                    'ProvisioningStyle': 'Manual' if manual else 'Automatic',
                     'SystemCapabilities': {'com.apple.ApplicationGroups.iOS': {'enabled': 1}}}
                 for name in TARGETS}
+            if manual:
+                settings = manual_settings(team, materials, certificate_sha1)
+                for name, identifier in zip(TARGETS, IDENTIFIERS):
+                    for configuration in ('Debug', 'Release'):
+                        target_config = generate_project.OBJECTS[generate_project.uid('config:' + name + ':' + configuration)]
+                        if target_config['buildSettings'].get('PRODUCT_BUNDLE_IDENTIFIER') != identifier:
+                            raise CheckError('MANUAL_SIGNING_TARGET_MISMATCH')
+                        target_config['buildSettings'].update(settings[identifier])
             document = dict(archiveVersion=1, classes={}, objectVersion=56,
                 objects=dict(sorted(generate_project.OBJECTS.items())), rootObject=generate_project.uid('project'))
             (generate_project.PROJECT / 'project.pbxproj').write_text('// !$*UTF8*$!\n' + generate_project.encode(document) + '\n', encoding='utf-8')
-            authentication = ['-allowProvisioningUpdates', '-authenticationKeyPath', str(api_key),
-                '-authenticationKeyID', os.environ['APP_STORE_CONNECT_KEY_IDENTIFIER'],
-                '-authenticationKeyIssuerID', os.environ['APP_STORE_CONNECT_ISSUER_ID']]
             archive = folder / 'AtodeYaruBox.xcarchive'
-            checkpoint('AUTOMATIC_SIGNING_RESERVED')
+            if manual:
+                result['stage'] = 'MANUAL_SIGNING_PREPARED'
+                record()
+            else:
+                checkpoint('AUTOMATIC_SIGNING_RESERVED')
+            overrides = (['CODE_SIGNING_ALLOWED=YES', 'CODE_SIGNING_REQUIRED=YES'] if manual else
+                ['DEVELOPMENT_TEAM=' + team, 'CODE_SIGN_STYLE=Automatic', 'CODE_SIGNING_ALLOWED=YES',
+                 'CODE_SIGNING_REQUIRED=YES', 'REGISTER_APP_GROUPS=YES'])
             run(['xcodebuild', '-project', 'AtodeYaruBox.xcodeproj', '-scheme', 'AtodeYaruBox',
                  '-configuration', 'Release', '-destination', 'generic/platform=iOS', '-archivePath', str(archive),
                  '-derivedDataPath', str(folder / 'DerivedData')] + authentication +
-                ['DEVELOPMENT_TEAM=' + team, 'CODE_SIGN_STYLE=Automatic', 'CODE_SIGNING_ALLOWED=YES',
-                 'CODE_SIGNING_REQUIRED=YES', 'REGISTER_APP_GROUPS=YES', 'archive'], 'archive', timeout=720)
-            verify_product(archive / 'Products/Applications/AtodeYaruBox.app', team, False, run)
+                overrides + ['archive'], 'archive', timeout=720)
+            verify_product(archive / 'Products/Applications/AtodeYaruBox.app', team, manual, run, certificate_der)
             result['signed_archive_verified'] = True
             options = folder / 'ExportOptions.plist'
-            options.write_bytes(plistlib.dumps(export_options(team)))
+            options.write_bytes(plistlib.dumps(export_options(team, materials, certificate_sha1)))
             exported = folder / 'exported'
             run(['xcodebuild', '-exportArchive', '-archivePath', str(archive), '-exportOptionsPlist', str(options),
                  '-exportPath', str(exported)] + authentication, 'export', timeout=360)
@@ -248,7 +327,7 @@ def main():
                     if not (unpacked / member.filename).resolve().is_relative_to(unpacked.resolve()):
                         raise CheckError('SIGNED_IPA_PATH_REFUSED')
                 package.extractall(unpacked)
-            verify_product(unpacked / 'Payload/AtodeYaruBox.app', team, True, run)
+            verify_product(unpacked / 'Payload/AtodeYaruBox.app', team, True, run, certificate_der)
             payload = packages[0].read_bytes()
             (ROOT / 'artifacts/AtodeYaruBox.ipa').write_bytes(payload)
             result.update(status='SIGNED_PACKAGE_VERIFIED', signed_ipa_verified=True,
