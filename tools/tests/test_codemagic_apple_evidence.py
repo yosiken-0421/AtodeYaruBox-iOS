@@ -35,6 +35,10 @@ class Checks(unittest.TestCase):
         self.assertEqual(api.requests[0].full_url, m.API)
         self.assertNotIn("X-auth-token", storage.requests[0].headers)
         self.assertNotIn(TOKEN, json.dumps(result))
+
+        passed = m.log_diagnostic(b"Ran 17 tests in 0.2s\n\nOK\n")
+        self.assertTrue(passed["unit_checks_passed"])
+        self.assertFalse(m.log_diagnostic(b"Ran 13 tests in 0.2s\n\nOK\n")["unit_checks_passed"])
         self.assertNotIn(URL, json.dumps(result))
 
     def test_identity_mismatch_never_downloads(self):
