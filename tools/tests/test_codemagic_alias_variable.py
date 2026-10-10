@@ -50,6 +50,26 @@ class Checks(unittest.TestCase):
         self.assertEqual(m.configure(TOKEN, t, GATE)["diagnostic"], "EXISTING_GROUP_NOT_MODIFIED")
         self.assertEqual(len(t.requests), 1)
 
+    def test_empty_zero_page_response_is_supported(self):
+        values = responses()
+        values[0] = {"data": [], "total_pages": 0, "current_page": 1}
+        values[2] = {"data": [], "total_pages": 0, "current_page": 1}
+        result = m.configure(TOKEN, Transport(values), GATE)
+        self.assertEqual(result["status"], "APP_LOCAL_ENCRYPTED_ALIAS_CONFIGURED")
+        self.assertEqual(result["free_m2_remaining_seconds"], 6000)
+
+    def test_inconsistent_or_incomplete_pages_cannot_mutate(self):
+        for data, pages, current in (([{"name": "other"}], 0, 1), ([], 2, 1), ([], 1, 2),
+                                     ([], True, 1), ([], 1, True)):
+            t = Transport([{"data": data, "total_pages": pages, "current_page": current}])
+            result = m.configure(TOKEN, t, GATE)
+            self.assertEqual(result["diagnostic"], "APP_GROUP_LIST_UNVERIFIED")
+            self.assertEqual([r.method for r in t.requests], ["GET"])
+
+    def test_page_diagnostics_never_copy_arbitrary_values(self):
+        result = m.configure(TOKEN, Transport([{"data": TOKEN, "total_pages": TOKEN}]), GATE)
+        self.assertNotIn(TOKEN, json.dumps(result))
+
     def test_group_identity_required_before_variable_import(self):
         t = Transport([{"data": []}, {"data": {"id": "../user", "name": m.GROUP}}])
         self.assertEqual(m.configure(TOKEN, t, GATE)["diagnostic"], "GROUP_CREATION_OUTCOME_UNVERIFIED")
