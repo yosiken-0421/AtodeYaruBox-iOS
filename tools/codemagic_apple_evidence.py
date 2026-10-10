@@ -96,11 +96,12 @@ def read_known_log(token, opener, download_opener):
     app, build = payload.get("application", {}), payload.get("build", {})
     if app.get("_id") != APP_ID or build.get("_id") != BUILD:
         return {"log_diagnostic": "LOG_BUILD_IDENTITY_UNVERIFIED"}
-    actions = build.get("actions", [])
+    actions = build.get("buildActions", [])
     if not isinstance(actions, list) or len(actions) < 3:
         return {"log_diagnostic": "LOG_ACTION_UNAVAILABLE"}
     step = actions[2]
-    if not isinstance(step, dict) or step.get("name") != "Verify Apple API authentication without changing apps or certificates":
+    expected = "Verify Apple API authentication without changing apps or certificates"
+    if not isinstance(step, dict) or expected not in (step.get("name"), step.get("title")):
         return {"log_diagnostic": "LOG_ACTION_IDENTITY_UNVERIFIED"}
     url = step.get("logUrl")
     if not isinstance(url, str) or len(url) > 8192:
