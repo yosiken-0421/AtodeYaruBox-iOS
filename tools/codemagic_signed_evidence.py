@@ -22,7 +22,7 @@ BOOLS = ('signed_archive_verified', 'signed_ipa_verified', 'apple_resources_modi
          'binary_uploaded', 'billing_modified', 'private_key_disclosed', 'native_tests_repeated',
          'all_three_bundle_ids_available', 'distribution_certificate_created',
          'matching_certificate_key_verified', 'team_identifier_verified')
-STAGES = {'preflight', 'app_record', 'inventory', 'profile_prepare', 'profile_install', 'MANUAL_SIGNING_PREPARED', 'BUNDLE_ID_POST_RESERVED', 'CERTIFICATE_POST_RESERVED', 'AUTOMATIC_SIGNING_RESERVED',
+STAGES = {'preflight', 'app_record', 'testflight_read', 'inventory', 'profile_prepare', 'profile_install', 'MANUAL_SIGNING_PREPARED', 'BUNDLE_ID_POST_RESERVED', 'CERTIFICATE_POST_RESERVED', 'AUTOMATIC_SIGNING_RESERVED',
           'keychain_create', 'keychain_settings', 'keychain_unlock', 'keychain_read', 'keychain_search',
           'keychain_import', 'keychain_partition', 'archive', 'signature_verify', 'profile_decode',
           'entitlements_read', 'export', 'complete'}
@@ -46,12 +46,14 @@ DIAGNOSTICS = APPLE_DIAGNOSTICS | {
     'APP_GROUP_PROFILE_ASSIGNMENT_REQUIRED', 'PROFILE_CERTIFICATE_MISMATCH', 'PROFILE_OWNED_MATCH_AMBIGUOUS',
     'PROFILE_PREPARATION_UNAVAILABLE', 'PROFILE_NAME_OR_UUID_UNVERIFIED', 'PROFILE_INSTALL_COLLISION',
     'MANUAL_SIGNING_MATERIAL_UNVERIFIED', 'MANUAL_SIGNING_TARGET_MISMATCH',
-    'APP_RECORD_RESPONSE_LIMIT', 'APP_RECORD_IDENTITY_UNVERIFIED', 'APP_RECORD_READ_UNAVAILABLE'}
+    'APP_RECORD_RESPONSE_LIMIT', 'APP_RECORD_IDENTITY_UNVERIFIED', 'APP_RECORD_READ_UNAVAILABLE',
+    'TESTFLIGHT_RESPONSE_UNVERIFIED', 'TESTFLIGHT_BUILD_IDENTITY_MISMATCH', 'TESTFLIGHT_AUDIENCE_NOT_INTERNAL',
+    'TESTFLIGHT_VALID_BUILD_METADATA_UNVERIFIED', 'TESTFLIGHT_RESPONSE_LIMIT', 'TESTFLIGHT_READ_UNAVAILABLE'}
 
 
 def sanitize(payload):
     if (not isinstance(payload, dict) or not isinstance(payload.get('status'), str)
-            or payload.get('status') not in {'NOT_RUN', 'NOT_VERIFIED', 'APP_RECORD_READ', 'SIGNED_PACKAGE_VERIFIED', 'SIGNING_INVENTORY_READ', 'DISTRIBUTION_PROFILES_VERIFIED'}
+            or payload.get('status') not in {'NOT_RUN', 'NOT_VERIFIED', 'APPLE_TESTFLIGHT_BUILD_PENDING', 'APPLE_TESTFLIGHT_BUILD_READ', 'APP_RECORD_READ', 'SIGNED_PACKAGE_VERIFIED', 'SIGNING_INVENTORY_READ', 'DISTRIBUTION_PROFILES_VERIFIED'}
             or payload.get('verified_native_source') != NATIVE or not isinstance(payload.get('stage'), str)
             or payload.get('stage') not in STAGES):
         return None
@@ -70,6 +72,43 @@ def sanitize(payload):
         if not isinstance(value, str) or value not in DIAGNOSTICS and not re.fullmatch(r'(?:APPLE|RESOURCE)_HTTP_[1-5][0-9]{2}', value):
             return None
         result['diagnostic'] = value
+    if payload['stage'] == 'testflight_read':
+        if (payload.get('app_record_id') != '6821479152' or payload['apple_resources_modified'] is not False
+                or any(type(payload.get(k)) is not bool for k in ('app_store_binary_present', 'eligible_internal_testing'))):
+            return None
+        result.update(app_record_id='6821479152', app_store_binary_present=payload['app_store_binary_present'],
+            eligible_internal_testing=payload['eligible_internal_testing'])
+        for key in ('internal_testing_only', 'metadata_verified', 'uses_non_exempt_encryption', 'public_group_link_present'):
+            if key in payload:
+                if type(payload[key]) is not bool:
+                    return None
+                result[key] = payload[key]
+        for key, values in {'processing_state': {'PROCESSING', 'FAILED', 'INVALID', 'VALID'},
+            'internal_beta_state': {'PROCESSING', 'PROCESSING_EXCEPTION', 'MISSING_EXPORT_COMPLIANCE', 'READY_FOR_BETA_TESTING', 'IN_BETA_TESTING', 'EXPIRED', 'IN_EXPORT_COMPLIANCE_REVIEW'},
+            'version': {'0.1.0'}, 'platform': {'IOS'}, 'build_number': {'1'}}.items():
+            if key in payload:
+                if payload[key] not in values:
+                    return None
+                result[key] = payload[key]
+        for key, limit in (('internal_group_count', 50), ('read_attempts', 6)):
+            if key in payload:
+                if type(payload[key]) is not int or not 0 <= payload[key] <= limit:
+                    return None
+                result[key] = payload[key]
+        if 'apple_build_id' in payload:
+            if not isinstance(payload['apple_build_id'], str) or not re.fullmatch('[0-9a-fA-F-]{36}', payload['apple_build_id']):
+                return None
+            result['apple_build_id'] = payload['apple_build_id']
+        if payload['status'] == 'APPLE_TESTFLIGHT_BUILD_READ' and (payload['app_store_binary_present'] is not True or 'apple_build_id' not in result):
+            return None
+        if payload['eligible_internal_testing'] and (payload['status'] != 'APPLE_TESTFLIGHT_BUILD_READ'
+                or payload.get('processing_state') != 'VALID' or payload.get('internal_testing_only') is not True
+                or payload.get('metadata_verified') is not True or payload.get('version') != '0.1.0'
+                or payload.get('platform') != 'IOS' or payload.get('uses_non_exempt_encryption') is not False
+                or payload.get('internal_beta_state') not in {'READY_FOR_BETA_TESTING', 'IN_BETA_TESTING'}):
+            return None
+    elif payload['status'].startswith('APPLE_TESTFLIGHT_'):
+        return None
     if payload['status'] == 'APP_RECORD_READ':
         if (payload['stage'] != 'app_record' or payload.get('app_record_read_verified') is not True
                 or type(payload.get('app_record_exists')) is not bool or payload['apple_resources_modified'] is not False):

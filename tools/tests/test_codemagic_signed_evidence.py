@@ -30,6 +30,25 @@ class Transport:
 
 
 class Checks(unittest.TestCase):
+    def test_apple_read_requires_exact_eligible_internal_build_without_mutation(self):
+        payload = report() | dict(status='APPLE_TESTFLIGHT_BUILD_READ', stage='testflight_read',
+            apple_resources_modified=False, app_record_id='6821479152', app_store_binary_present=True,
+            eligible_internal_testing=True, apple_build_id='a'*36, processing_state='VALID',
+            internal_testing_only=True, metadata_verified=True, version='0.1.0', platform='IOS',
+            uses_non_exempt_encryption=False, internal_beta_state='READY_FOR_BETA_TESTING', private=TOKEN)
+        payload.pop('diagnostic')
+        self.assertTrue(m.sanitize(payload)['eligible_internal_testing'])
+        self.assertNotIn(TOKEN, json.dumps(m.sanitize(payload)))
+        for change in ({'app_record_id':'other'}, {'processing_state':'PROCESSING'}, {'internal_testing_only':False},
+                       {'metadata_verified':False}, {'uses_non_exempt_encryption':True}, {'platform':'MAC_OS'}, {'apple_build_id':TOKEN}):
+            self.assertIsNone(m.sanitize(payload | change))
+    def test_apple_pending_does_not_claim_a_present_or_installable_build(self):
+        payload = report() | dict(status='APPLE_TESTFLIGHT_BUILD_PENDING', stage='testflight_read',
+            apple_resources_modified=False, app_record_id='6821479152', app_store_binary_present=False,
+            eligible_internal_testing=False)
+        payload.pop('diagnostic')
+        self.assertFalse(m.sanitize(payload)['eligible_internal_testing'])
+        self.assertIsNone(m.sanitize(payload | {'eligible_internal_testing':True}))
     def test_app_record_evidence_only_accepts_verified_identity_without_writes(self):
         payload = report() | dict(status='APP_RECORD_READ', stage='app_record', apple_resources_modified=False,
             app_record_read_verified=True, app_record_exists=True, app_record_id='1234567890', private=TOKEN)
