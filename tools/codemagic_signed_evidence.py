@@ -259,13 +259,16 @@ def classify_log(raw):
                 result['owner_group_diagnostic'] = code
             if candidate.get('owner_tester_stage') in {'group_read','tester_read','existing_owner_read','tester_create','group_assign','tester_verify','group_verify'}:
                 result['owner_tester_stage']=candidate['owner_tester_stage']
-            for key in ('tester_rows_are_list','tester_lookup_has_next'):
+            for key in ('tester_rows_are_list','tester_lookup_has_next','apple_error_mentions_app_mismatch','apple_error_mentions_internal'):
                 if type(candidate.get(key)) is bool:result[key]=candidate[key]
             count=candidate.get('tester_lookup_count')
             if type(count) is int and 0 <= count <= 2:result['tester_lookup_count']=count
-            for key in ('existing_candidate_count','internal_candidate_count'):
+            for key in ('existing_candidate_count','internal_candidate_count','active_internal_candidate_count'):
                 count=candidate.get(key)
                 if type(count) is int and 0 <= count <= 50:result[key]=count
+            categories=candidate.get('apple_error_categories')
+            if isinstance(categories,list) and len(categories)<=4 and all(x in {'RELATIONSHIP_INVALID','ATTRIBUTE_EXISTS','ATTRIBUTE_INVALID','CONTRACT_MISSING','OTHER'} for x in categories):
+                result['apple_error_categories']=categories
     return result
 
 
