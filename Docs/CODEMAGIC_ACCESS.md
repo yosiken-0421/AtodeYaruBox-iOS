@@ -4,7 +4,9 @@
 
 2026-10-11：Apple側で本体ID `jp.atodeyarubox.app` のApp Store Connect登録を確認しました。App IDは `6821479152`。[登録の照合記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38096340327)は実Mac補助23件とGET専用確認が成功。新規Appの登録操作は完了しています。
 
-署名付きArchive・IPAは検証済み、Compile Error 0・コンパイラWarning 0。ネイティブUnit 76/UI 10の86件、既存補助115件が成功。TestFlight送信準備の独立した7件も成功しました。Appleへのバイナリ送信とiPhoneインストールは未実行です。送信先・版0.1.0(1)・内部テスト限定・重複送信を防ぐ確認を固定した非公開ジョブを準備し、最後に本人の送信許可だけを受け取ります。追加支払い・キー再作成は不要です。実機QA、クラウドAI・CloudKitは未完了です。
+本人から「TestFlight送信を許可」を受領しました。送信先はApp ID `6821479152`、版0.1.0(1)、内部テスト限定です。最初の開始要求はCIの送信設定検証で終了し、Macビルド・Apple送信は開始されませんでした。[開始結果の照合](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38097701712)で、App Store審査提出を行わない設定に`cancel_previous_submissions`を明示したことが原因と確認しました。既定値がfalseの審査取消・期限切れオプションを省略して修正します。追加支払い、App Store審査提出、外部テスターへの配布は含めません。
+
+署名付きArchive・IPAは検証済み、Compile Error 0・コンパイラWarning 0。ネイティブUnit 76/UI 10の86件、既存補助115件と診断10件が成功。TestFlight送信準備の独立した7件も成功しました。Appleの受領確認とiPhoneインストールは未完了です。実機QA、クラウドAI・CloudKitも未完了です。
 
 直前の[無料枠確認](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38096204678)はPersonal所有・有料CI/CD契約なし・M2無料残量5401秒を確認しました。これは登録照合前の観測で、次のMacジョブ開始前には無料枠を再取得します。署名済みIPAの成功と、GET専用結果に含まれる署名未実行フラグは別の実行として保持しています。
 
