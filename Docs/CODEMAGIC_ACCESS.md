@@ -1,5 +1,8 @@
 # CodemagicとAppleへの接続確認
 
+2026-10-11：本人用テスター登録の補助35件は成功しましたが、登録前GETが400で停止しました。Apple公式仕様でlimit[betaGroups]の最大値50を確認し、値200を50へ修正。上限の回帰確認を追加した9件も成功しました。この実行ではPOST未到達で、テスター登録・招待は未実行です。本人メールは非公開CI内に限定し、公開ソース・結果には含めません。
+
+
 2026-10-11：TestFlight送信とApple処理が完了し、版0.1.0(1)は内部テスト可能です。本人用の内部グループと今回のビルドだけの登録を、[GET専用の実照合](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38099377912)と補助27件で確認しました。内部グループのpublicLinkEnabledは実APIでnullであり、isInternalGroup=true・hasAccessToAllBuilds=false、App/Bundle ID/VALID/INTERNAL_ONLY/ビルド関係を個別に照合しています。作成POSTの再実行は不要でした。本人のApple Accountメール確認後に本人テスター登録へ進みます。追加支払い・他者招待・App Store審査提出はありません。iPhoneインストールと実機QAは未確認です。
 
 以下は過去の調査記録です。
