@@ -1,5 +1,10 @@
 # CodemagicとAppleへの接続確認
 
+2026-10-11：TestFlight送信とApple処理が完了し、版0.1.0(1)は内部テスト可能です。本人用の内部グループと今回のビルドだけの登録を、[GET専用の実照合](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38099377912)と補助27件で確認しました。内部グループのpublicLinkEnabledは実APIでnullであり、isInternalGroup=true・hasAccessToAllBuilds=false、App/Bundle ID/VALID/INTERNAL_ONLY/ビルド関係を個別に照合しています。作成POSTの再実行は不要でした。本人のApple Accountメール確認後に本人テスター登録へ進みます。追加支払い・他者招待・App Store審査提出はありません。iPhoneインストールと実機QAは未確認です。
+
+以下は過去の調査記録です。
+
+
 内部グループの作成認証修正後は補助26件が成功し、返されたグループの項目照合で停止しました。作成POSTを繰り返す前に、同じApp・固定グループ名・同じビルドのGET専用照合でnullable項目と関連付けを確認します。本人のTestFlight用Apple Account確認は未回答です。送信成功・Appleの`VALID`・`READY_FOR_BETA_TESTING`は確認済みです。
 
 内部グループ準備の最初の実行は補助26件成功後にHTTP405で終了しました。Appleの[JWT公式仕様](https://developer.apple.com/documentation/appstoreconnectapi/generating-tokens-for-api-requests)に従い、GETは対象を限定したscopeを保持し、作成・関連付けのPOSTはscopeを省略した有効期間60秒のトークンへ修正します。署名前に固定APIルート・本人App・内部グループ・処理済みビルド1件の本文を照合し、POST結果が不明な場合の自動再送は拒否します。外部グループ、公開リンク、テスター招待、既存グループの削除は行いません。TestFlightへのアプリ送信成功とAppleの処理完了は維持されています。
