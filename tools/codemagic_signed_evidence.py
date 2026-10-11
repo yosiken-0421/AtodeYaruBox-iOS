@@ -10,9 +10,9 @@ import urllib.request
 from tools.codemagic_read_access import APP_ID, NoRedirect, write_report
 from tools.codemagic_apple_evidence import DIAGNOSTICS as APPLE_DIAGNOSTICS
 
-BUILD = '6acad9c42e8bb15cf3ab0541'
-COMMIT = '13030acc409a46d543eff27b69250aae9308a8c6'
-BRANCH = 'codex/owner-testflight-group-auth-a54f8c4'
+BUILD = '6acadb6b59e0a0dce27b4926'
+COMMIT = 'a60b987d022eb6df4d56bb732abbc27336454d3b'
+BRANCH = 'codex/owner-testflight-group-state-034904a'
 NATIVE = '300dc7f7143c3c9e6fc0615effe70bd10efb6950'
 NAME = 'signed-package-result.json'
 STEP = 'Prepare the private signed package without uploading'
@@ -59,7 +59,7 @@ def sanitize(payload):
                 or type(payload.get('testers_invited')) is not int or payload['testers_invited'] != 0):
             return None
         result={k:payload[k] for k in ('status','app_record_id','apple_build_id','group_count','apple_resources_modified','binary_uploaded','billing_modified','private_key_disclosed','testers_invited')}
-        for key in ('resource_type_matches','group_name_matches','group_id_is_uuid','app_relationship_matches','build_relationship_present','exact_build_relationship_matches'):
+        for key in ('resource_type_matches','group_name_matches','group_id_is_uuid','app_relationship_matches','app_bundle_matches','accepted_internal_build_matches','build_relationship_present','exact_build_relationship_matches'):
             if key in payload:
                 if type(payload[key]) is not bool:return None
                 result[key]=payload[key]
@@ -220,7 +220,7 @@ def sanitize(payload):
 
 def classify_log(raw):
     text = raw.decode('utf-8', errors='replace')
-    result = {'unit_checks_passed': bool(re.search(r'Ran 26 tests[^\n]*\n\s*\nOK(?:\n|$)', text)),
+    result = {'unit_checks_passed': bool(re.search(r'Ran 27 tests[^\n]*\n\s*\nOK(?:\n|$)', text)),
               'unit_checks_failed': 'FAILED (' in text, 'python_module_missing': 'ModuleNotFoundError' in text}
     decoder = json.JSONDecoder()
     for match in re.finditer(r'\{', text):
