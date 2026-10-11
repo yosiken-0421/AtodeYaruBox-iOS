@@ -13,7 +13,8 @@
             "verify_alias",
             "apple_evidence",
             "configure_signing_key",
-            "signed_evidence"
+            "signed_evidence",
+            "dispatch_evidence"
           ]
         }
       }
@@ -40,7 +41,7 @@
         },
         {
           "name": "Check request scope, redirects and secret-safe reporting",
-          "run": "python3 -m unittest -v tools.tests.test_codemagic_read_access tools.tests.test_codemagic_integration_read tools.tests.test_codemagic_alias_variable tools.tests.test_codemagic_apple_evidence tools.tests.test_codemagic_signed_evidence"
+          "run": "python3 -m unittest -v tools.tests.test_codemagic_read_access tools.tests.test_codemagic_integration_read tools.tests.test_codemagic_alias_variable tools.tests.test_codemagic_apple_evidence tools.tests.test_codemagic_signed_evidence tools.tests.test_codemagic_dispatch_evidence"
         },
         {
           "name": "Read only the known completed Apple check report",
@@ -104,9 +105,17 @@
           "run": "python3 -m tools.codemagic_signing_key"
         },
         {
+          "name": "Read only the one requested upload webhook result",
+          "if": "inputs.mode == 'dispatch_evidence'",
+          "env": {
+            "CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"
+          },
+          "run": "python3 -m tools.codemagic_dispatch_evidence"
+        },
+        {
           "name": "Show sanitized access result",
           "if": "always()",
-          "run": "python3 -c \"from pathlib import Path; [print(p.read_text()) for p in (Path('artifacts/codemagic-read-access.json'), Path('artifacts/codemagic-integration-read.json'), Path('artifacts/codemagic-alias-variable.json'), Path('artifacts/codemagic-apple-evidence.json'), Path('artifacts/codemagic-signing-key.json'), Path('artifacts/codemagic-signed-evidence.json')) if p.exists()]\""
+          "run": "python3 -c \"from pathlib import Path; [print(p.read_text()) for p in (Path('artifacts/codemagic-read-access.json'), Path('artifacts/codemagic-integration-read.json'), Path('artifacts/codemagic-alias-variable.json'), Path('artifacts/codemagic-apple-evidence.json'), Path('artifacts/codemagic-signing-key.json'), Path('artifacts/codemagic-signed-evidence.json'), Path('artifacts/codemagic-dispatch-evidence.json')) if p.exists()]\""
         }
       ]
     }
