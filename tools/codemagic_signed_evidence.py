@@ -52,6 +52,32 @@ DIAGNOSTICS = APPLE_DIAGNOSTICS | {
 
 
 def sanitize(payload):
+    if isinstance(payload, dict) and payload.get('status') == 'OWNER_TESTFLIGHT_GROUP_STATE_READ':
+        if (payload.get('app_record_id') != '6821479152' or payload.get('apple_build_id') != '3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea'
+                or type(payload.get('group_count')) is not int or not 0 <= payload['group_count'] <= 1
+                or any(payload.get(k) is not False for k in ('apple_resources_modified','binary_uploaded','billing_modified','private_key_disclosed'))
+                or type(payload.get('testers_invited')) is not int or payload['testers_invited'] != 0):
+            return None
+        result={k:payload[k] for k in ('status','app_record_id','apple_build_id','group_count','apple_resources_modified','binary_uploaded','billing_modified','private_key_disclosed','testers_invited')}
+        for key in ('resource_type_matches','group_name_matches','group_id_is_uuid','app_relationship_matches','build_relationship_present','exact_build_relationship_matches'):
+            if key in payload:
+                if type(payload[key]) is not bool:return None
+                result[key]=payload[key]
+        for key in ('isInternalGroup','publicLinkEnabled','hasAccessToAllBuilds'):
+            if key in payload:
+                if payload[key] is not None and type(payload[key]) is not bool and payload[key] != 'OTHER':return None
+                result[key]=payload[key]
+        if 'group_id' in payload:
+            if not isinstance(payload['group_id'],str) or not re.fullmatch('[0-9a-fA-F-]{36}',payload['group_id']):return None
+            result['group_id']=payload['group_id']
+        if 'build_count' in payload:
+            if type(payload['build_count']) is not int or not 0 <= payload['build_count'] <= 2:return None
+            result['build_count']=payload['build_count']
+        if 'attribute_fields_present' in payload:
+            fields=payload['attribute_fields_present']
+            if not isinstance(fields,list) or not set(fields).issubset({'name','isInternalGroup','publicLinkEnabled','hasAccessToAllBuilds'}):return None
+            result['attribute_fields_present']=fields
+        return result
     if isinstance(payload, dict) and payload.get('status') == 'OWNER_INTERNAL_TESTFLIGHT_GROUP_READY':
         if (payload.get('app_record_id') != '6821479152'
                 or payload.get('apple_build_id') != '3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea'

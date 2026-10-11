@@ -30,6 +30,14 @@ class Transport:
 
 
 class Checks(unittest.TestCase):
+    def test_read_only_group_shape_allows_nulls_without_private_messages(self):
+        payload=dict(status='OWNER_TESTFLIGHT_GROUP_STATE_READ',app_record_id='6821479152',
+            apple_build_id='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea',group_count=1,
+            apple_resources_modified=False,binary_uploaded=False,billing_modified=False,private_key_disclosed=False,
+            testers_invited=0,isInternalGroup=True,publicLinkEnabled=None,hasAccessToAllBuilds=False,private=TOKEN)
+        self.assertIsNone(m.sanitize(payload)['publicLinkEnabled'])
+        self.assertNotIn(TOKEN,json.dumps(m.sanitize(payload)))
+        self.assertIsNone(m.sanitize(payload | {'testers_invited':1}))
     def test_owner_group_proof_cannot_disclose_or_invite_anybody(self):
         payload = dict(status='OWNER_INTERNAL_TESTFLIGHT_GROUP_READY', app_record_id='6821479152',
             apple_build_id='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea', group_id='b'*36,
