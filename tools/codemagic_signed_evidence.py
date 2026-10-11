@@ -52,6 +52,30 @@ DIAGNOSTICS = APPLE_DIAGNOSTICS | {
 
 
 def sanitize(payload):
+    if isinstance(payload,dict) and payload.get('status')=='OWNER_TESTFLIGHT_ACCESS_RESULT':
+        flags=('owner_user_found','owner_user_role_eligible','owner_user_app_access','owner_role_unchanged',
+               'owner_access_add_attempted','owner_access_added','owner_app_scope_only',
+               'owner_internal_group_verified','owner_internal_build_assigned','owner_tester_registered','apple_resources_modified')
+        disabled=('public_link_enabled','automatic_future_builds','binary_uploaded','billing_modified','private_key_disclosed')
+        if (payload.get('app_record_id')!='6821479152' or payload.get('apple_build_id')!='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea'
+                or any(type(payload.get(k)) is not bool for k in flags) or payload.get('owner_app_scope_only') is not True
+                or any(payload.get(k) is not False for k in disabled) or type(payload.get('other_testers_invited')) is not int
+                or payload['other_testers_invited']!=0):return None
+        if payload['owner_tester_registered'] and not all(payload[k] for k in ('owner_user_found','owner_user_role_eligible',
+                'owner_user_app_access','owner_role_unchanged','owner_internal_group_verified','owner_internal_build_assigned')):return None
+        result={k:payload[k] for k in ('status','app_record_id','apple_build_id','other_testers_invited')+flags+disabled}
+        if 'diagnostic' in payload:
+            code=payload['diagnostic']
+            if not isinstance(code,str) or not re.fullmatch(r'OWNER_TESTER_[A-Z_]+|APPLE_HTTP_[1-5][0-9]{2}',code):return None
+            result['diagnostic']=code
+        if 'owner_tester_stage' in payload:
+            stage=payload['owner_tester_stage']
+            if stage not in {'group_read','existing_owner_read','owner_access_add','owner_access_verify','tester_read',
+                             'tester_create','group_assign','tester_verify','group_verify'}:return None
+            result['owner_tester_stage']=stage
+        if payload.get('tester_state') in {'INVITED','ACCEPTED','INSTALLED','NOT_INVITED','REVOKED','UNKNOWN'}:
+            result['tester_state']=payload['tester_state']
+        return result
     if isinstance(payload,dict) and payload.get('status')=='OWNER_TESTFLIGHT_ELIGIBILITY_READ':
         flags=('owner_internal_group_verified','owner_tester_registered','owner_user_found','owner_user_role_eligible',
                'owner_user_app_access','owner_user_identifier_is_beta_tester','existing_owner_matches_account_identifier')
@@ -361,7 +385,7 @@ def inspect(token, opener=None, storage=None):
 def main():
     write_report(REPORT, {'status': 'NOT_RUN', 'app_id': APP_ID})
     result = inspect(os.environ.pop('CODEMAGIC_API_TOKEN', ''))
-    if result.get('signed_report',{}).get('status')=='OWNER_TESTFLIGHT_ELIGIBILITY_READ':
+    if result.get('signed_report',{}).get('status') in {'OWNER_TESTFLIGHT_ELIGIBILITY_READ','OWNER_TESTFLIGHT_ACCESS_RESULT'}:
         write_report(REPORT,{'status':'PRIVATE_READER_REQUIRED'})
         print('PRIVATE_READER_REQUIRED')
         return 1

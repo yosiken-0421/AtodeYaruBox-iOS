@@ -32,6 +32,22 @@ class Transport:
 
 
 class Checks(unittest.TestCase):
+    def test_owner_access_result_never_contains_private_account_values(self):
+        p=dict(status='OWNER_TESTFLIGHT_ACCESS_RESULT',app_record_id='6821479152',apple_build_id='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea',
+            owner_user_found=True,owner_user_role_eligible=True,owner_user_app_access=True,owner_role_unchanged=True,
+            owner_access_add_attempted=True,owner_access_added=True,owner_app_scope_only=True,owner_internal_group_verified=True,
+            owner_internal_build_assigned=True,owner_tester_registered=True,apple_resources_modified=True,other_testers_invited=0,
+            public_link_enabled=False,automatic_future_builds=False,binary_uploaded=False,billing_modified=False,private_key_disclosed=False,
+            email='synthetic@example.invalid',user_id=TOKEN,roles=['DEVELOPER'])
+        r=m.sanitize(p);self.assertTrue(r['owner_tester_registered'])
+        for value in (TOKEN,'synthetic@example.invalid','DEVELOPER'):self.assertNotIn(value,json.dumps(r))
+        for update in ({'owner_app_scope_only':False},{'other_testers_invited':1},{'owner_user_app_access':False},
+                       {'diagnostic':TOKEN},{'owner_tester_stage':TOKEN}):self.assertIsNone(m.sanitize(p|update))
+    def test_plain_mode_refuses_owner_access_results_even_after_success(self):
+        written=[];output=io.StringIO()
+        with patch.object(m,'inspect',return_value={'signed_report':{'status':'OWNER_TESTFLIGHT_ACCESS_RESULT','private':TOKEN}}),patch.object(m,'write_report',side_effect=lambda p,v:written.append(v)),contextlib.redirect_stdout(output):
+            self.assertEqual(m.main(),1)
+        self.assertEqual(output.getvalue().strip(),'PRIVATE_READER_REQUIRED');self.assertNotIn(TOKEN,json.dumps(written))
     def test_plain_public_mode_refuses_account_eligibility_output(self):
         written=[];output=io.StringIO()
         with patch.object(m,'inspect',return_value={'signed_report':{'status':'OWNER_TESTFLIGHT_ELIGIBILITY_READ','private':TOKEN}}),patch.object(m,'write_report',side_effect=lambda p,v:written.append(v)),contextlib.redirect_stdout(output):
