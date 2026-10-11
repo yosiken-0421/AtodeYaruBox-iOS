@@ -10,9 +10,9 @@ import urllib.request
 from tools.codemagic_read_access import APP_ID, NoRedirect, write_report
 from tools.codemagic_apple_evidence import DIAGNOSTICS as APPLE_DIAGNOSTICS
 
-BUILD = '6acadf6459e0a0dce27b5289'
-COMMIT = 'b6573bbe9c97ee1aea040649a1e0ddd6099163d3'
-BRANCH = 'codex/owner-testflight-tester-scope-83dcff7'
+BUILD = '6acae0652e8bb15cf3ab14fb'
+COMMIT = '4e77e8d61273cd6cae1ea704e3749462aa0ef25e'
+BRANCH = 'codex/owner-testflight-tester-reuse-7c2bef4'
 NATIVE = '300dc7f7143c3c9e6fc0615effe70bd10efb6950'
 NAME = 'signed-package-result.json'
 STEP = 'Prepare the private signed package without uploading'
@@ -234,7 +234,7 @@ def sanitize(payload):
 
 def classify_log(raw):
     text = raw.decode('utf-8', errors='replace')
-    result = {'unit_checks_passed': bool(re.search(r'Ran 37 tests[^\n]*\n\s*\nOK(?:\n|$)', text)),
+    result = {'unit_checks_passed': bool(re.search(r'Ran 42 tests[^\n]*\n\s*\nOK(?:\n|$)', text)),
               'unit_checks_failed': 'FAILED (' in text, 'python_module_missing': 'ModuleNotFoundError' in text}
     decoder = json.JSONDecoder()
     for match in re.finditer(r'\{', text):
