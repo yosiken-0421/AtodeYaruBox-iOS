@@ -30,6 +30,20 @@ class Transport:
 
 
 class Checks(unittest.TestCase):
+    def test_owner_eligibility_result_omits_identifiers_email_and_roles(self):
+        p=dict(status='OWNER_TESTFLIGHT_ELIGIBILITY_READ',app_record_id='6821479152',
+            apple_build_id='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea',owner_internal_group_verified=True,
+            owner_tester_registered=False,owner_user_found=True,owner_user_role_eligible=True,
+            owner_user_app_access=True,owner_user_identifier_is_beta_tester=False,
+            existing_owner_matches_account_identifier=False,existing_owner_candidate_count=2,
+            existing_owner_target_app_candidate_count=0,other_testers_invited=0,
+            apple_resources_modified=False,binary_uploaded=False,billing_modified=False,private_key_disclosed=False,
+            email='synthetic@example.invalid',user_id=TOKEN,roles=['DEVELOPER'])
+        result=m.sanitize(p)
+        self.assertTrue(result['owner_user_role_eligible'])
+        for value in ('synthetic@example.invalid',TOKEN,'DEVELOPER'):self.assertNotIn(value,json.dumps(result))
+        for update in ({'app_record_id':'other'},{'other_testers_invited':1},{'existing_owner_target_app_candidate_count':3},{'owner_user_found':'yes'}):
+            self.assertIsNone(m.sanitize(p | update))
     def test_owner_registration_never_reports_email_or_another_tester(self):
         p=dict(status='OWNER_INTERNAL_TESTFLIGHT_TESTER_REGISTERED',app_record_id='6821479152',
             apple_build_id='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea',group_id='b170086a-49ff-4990-b9cc-b68df67cd5df',

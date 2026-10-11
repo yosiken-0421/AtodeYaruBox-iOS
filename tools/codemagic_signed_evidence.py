@@ -52,6 +52,18 @@ DIAGNOSTICS = APPLE_DIAGNOSTICS | {
 
 
 def sanitize(payload):
+    if isinstance(payload,dict) and payload.get('status')=='OWNER_TESTFLIGHT_ELIGIBILITY_READ':
+        flags=('owner_internal_group_verified','owner_tester_registered','owner_user_found','owner_user_role_eligible',
+               'owner_user_app_access','owner_user_identifier_is_beta_tester','existing_owner_matches_account_identifier')
+        disabled=('apple_resources_modified','binary_uploaded','billing_modified','private_key_disclosed')
+        count=payload.get('existing_owner_candidate_count');target=payload.get('existing_owner_target_app_candidate_count')
+        if (payload.get('app_record_id')!='6821479152' or payload.get('apple_build_id')!='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea'
+                or any(type(payload.get(k)) is not bool for k in flags) or payload['owner_internal_group_verified'] is not True
+                or any(payload.get(k) is not False for k in disabled) or payload.get('other_testers_invited')!=0
+                or type(count) is not int or type(target) is not int or not 0<=target<=count<=50):
+            return None
+        keys=('status','app_record_id','apple_build_id','existing_owner_candidate_count','existing_owner_target_app_candidate_count','other_testers_invited')+flags+disabled
+        return {k:payload[k] for k in keys}
     if isinstance(payload, dict) and payload.get('status') == 'OWNER_INTERNAL_TESTFLIGHT_TESTER_REGISTERED':
         required=('owner_email_matches','owner_tester_registered','owner_internal_group_verified','owner_internal_build_assigned')
         disabled=('public_link_enabled','automatic_future_builds','binary_uploaded','billing_modified','private_key_disclosed')
