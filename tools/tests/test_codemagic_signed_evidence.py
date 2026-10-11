@@ -30,6 +30,18 @@ class Transport:
 
 
 class Checks(unittest.TestCase):
+    def test_owner_registration_never_reports_email_or_another_tester(self):
+        p=dict(status='OWNER_INTERNAL_TESTFLIGHT_TESTER_REGISTERED',app_record_id='6821479152',
+            apple_build_id='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea',group_id='b170086a-49ff-4990-b9cc-b68df67cd5df',
+            tester_id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',tester_state='INVITED',owner_email_matches=True,
+            owner_tester_registered=True,owner_internal_group_verified=True,owner_internal_build_assigned=True,
+            owner_testers_registered=1,other_testers_invited=0,public_link_enabled=False,automatic_future_builds=False,
+            apple_resources_modified=True,binary_uploaded=False,billing_modified=False,private_key_disclosed=False,
+            email='synthetic@example.invalid')
+        self.assertTrue(m.sanitize(p)['owner_tester_registered'])
+        self.assertNotIn('synthetic@example.invalid',json.dumps(m.sanitize(p)))
+        for update in ({'other_testers_invited':1},{'owner_email_matches':False},{'public_link_enabled':True},{'group_id':'other'}):
+            self.assertIsNone(m.sanitize(p | update))
     def test_read_only_group_shape_allows_nulls_without_private_messages(self):
         payload=dict(status='OWNER_TESTFLIGHT_GROUP_STATE_READ',app_record_id='6821479152',
             apple_build_id='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea',group_count=1,
@@ -113,7 +125,7 @@ class Checks(unittest.TestCase):
             self.assertIsNone(m.sanitize({**report(), **change}))
 
     def test_only_fixed_log_flags_and_whitelisted_report_survive(self):
-        result = m.classify_log((TOKEN + '\nRan 27 tests in 0.2s\n\nOK\n' + json.dumps({**report(), 'private': TOKEN})).encode())
+        result = m.classify_log((TOKEN + '\nRan 35 tests in 0.2s\n\nOK\n' + json.dumps({**report(), 'private': TOKEN})).encode())
         self.assertTrue(result['unit_checks_passed'])
         self.assertEqual(result['signed_report'], report())
         self.assertNotIn(TOKEN, json.dumps(result))

@@ -10,9 +10,9 @@ import urllib.request
 from tools.codemagic_read_access import APP_ID, NoRedirect, write_report
 from tools.codemagic_apple_evidence import DIAGNOSTICS as APPLE_DIAGNOSTICS
 
-BUILD = '6acadb6b59e0a0dce27b4926'
-COMMIT = 'a60b987d022eb6df4d56bb732abbc27336454d3b'
-BRANCH = 'codex/owner-testflight-group-state-034904a'
+BUILD = '6acadd8b2e8bb15cf3ab0e1d'
+COMMIT = 'd16be04d55643ee8382fdd1fc3b0c662a7739349'
+BRANCH = 'codex/owner-testflight-tester-dbc987f'
 NATIVE = '300dc7f7143c3c9e6fc0615effe70bd10efb6950'
 NAME = 'signed-package-result.json'
 STEP = 'Prepare the private signed package without uploading'
@@ -52,6 +52,20 @@ DIAGNOSTICS = APPLE_DIAGNOSTICS | {
 
 
 def sanitize(payload):
+    if isinstance(payload, dict) and payload.get('status') == 'OWNER_INTERNAL_TESTFLIGHT_TESTER_REGISTERED':
+        required=('owner_email_matches','owner_tester_registered','owner_internal_group_verified','owner_internal_build_assigned')
+        disabled=('public_link_enabled','automatic_future_builds','binary_uploaded','billing_modified','private_key_disclosed')
+        if (payload.get('app_record_id') != '6821479152' or payload.get('apple_build_id') != '3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea'
+                or payload.get('group_id') != 'b170086a-49ff-4990-b9cc-b68df67cd5df'
+                or not isinstance(payload.get('tester_id'),str) or not re.fullmatch('[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}',payload['tester_id'])
+                or any(payload.get(k) is not True for k in required) or any(payload.get(k) is not False for k in disabled)
+                or type(payload.get('owner_testers_registered')) is not int or payload['owner_testers_registered'] != 1
+                or type(payload.get('other_testers_invited')) is not int or payload['other_testers_invited'] != 0
+                or type(payload.get('apple_resources_modified')) is not bool
+                or payload.get('tester_state') not in {'INVITED','ACCEPTED','INSTALLED','NOT_INVITED','REVOKED','UNKNOWN'}):
+            return None
+        keys=('status','app_record_id','apple_build_id','group_id','tester_id','tester_state','owner_testers_registered','other_testers_invited','apple_resources_modified')+required+disabled
+        return {k:payload[k] for k in keys}
     if isinstance(payload, dict) and payload.get('status') == 'OWNER_TESTFLIGHT_GROUP_STATE_READ':
         if (payload.get('app_record_id') != '6821479152' or payload.get('apple_build_id') != '3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea'
                 or type(payload.get('group_count')) is not int or not 0 <= payload['group_count'] <= 1
@@ -220,7 +234,7 @@ def sanitize(payload):
 
 def classify_log(raw):
     text = raw.decode('utf-8', errors='replace')
-    result = {'unit_checks_passed': bool(re.search(r'Ran 27 tests[^\n]*\n\s*\nOK(?:\n|$)', text)),
+    result = {'unit_checks_passed': bool(re.search(r'Ran 35 tests[^\n]*\n\s*\nOK(?:\n|$)', text)),
               'unit_checks_failed': 'FAILED (' in text, 'python_module_missing': 'ModuleNotFoundError' in text}
     decoder = json.JSONDecoder()
     for match in re.finditer(r'\{', text):
@@ -237,9 +251,14 @@ def classify_log(raw):
             code = candidate.get('diagnostic')
             if isinstance(code, str) and (code in {'OWNER_GROUP_ROUTE_REFUSED', 'OWNER_GROUP_BODY_OR_REPLAY_REFUSED',
                     'OWNER_GROUP_RESPONSE_LIMIT', 'OWNER_GROUP_OUTCOME_UNAVAILABLE', 'OWNER_GROUP_RESPONSE_UNVERIFIED',
-                    'OWNER_GROUP_IDENTITY_UNVERIFIED', 'OWNER_GROUP_APP_UNVERIFIED', 'OWNER_GROUP_BUILD_UNVERIFIED', 'OWNER_GROUP_ASSIGNMENT_UNVERIFIED'}
+                    'OWNER_GROUP_IDENTITY_UNVERIFIED', 'OWNER_GROUP_APP_UNVERIFIED', 'OWNER_GROUP_BUILD_UNVERIFIED', 'OWNER_GROUP_ASSIGNMENT_UNVERIFIED',
+                    'OWNER_TESTER_ROUTE_REFUSED','OWNER_TESTER_BODY_OR_REPLAY_REFUSED','OWNER_TESTER_RESPONSE_LIMIT',
+                    'OWNER_TESTER_OUTCOME_UNAVAILABLE','OWNER_TESTER_GROUP_UNVERIFIED','OWNER_TESTER_RESPONSE_UNVERIFIED',
+                    'OWNER_TESTER_IDENTITY_UNVERIFIED','OWNER_TESTER_MEMBERSHIP_UNVERIFIED'}
                     or re.fullmatch('APPLE_HTTP_[1-5][0-9]{2}', code)):
                 result['owner_group_diagnostic'] = code
+            if candidate.get('owner_tester_stage') in {'group_read','tester_read','tester_create','group_assign','tester_verify','group_verify'}:
+                result['owner_tester_stage']=candidate['owner_tester_stage']
     return result
 
 
