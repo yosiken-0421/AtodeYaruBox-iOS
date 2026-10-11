@@ -125,7 +125,7 @@ class Checks(unittest.TestCase):
             self.assertIsNone(m.sanitize({**report(), **change}))
 
     def test_only_fixed_log_flags_and_whitelisted_report_survive(self):
-        result = m.classify_log((TOKEN + '\nRan 45 tests in 0.2s\n\nOK\n' + json.dumps({**report(), 'private': TOKEN})).encode())
+        result = m.classify_log((TOKEN + '\nRan 46 tests in 0.2s\n\nOK\n' + json.dumps({**report(), 'private': TOKEN})).encode())
         self.assertTrue(result['unit_checks_passed'])
         self.assertEqual(result['signed_report'], report())
         self.assertNotIn(TOKEN, json.dumps(result))
