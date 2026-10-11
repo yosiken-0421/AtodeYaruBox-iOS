@@ -77,5 +77,12 @@ class Checks(unittest.TestCase):
         self.assertTrue(result['task_error_present'])
         self.assertFalse(result['task_result_present'])
         self.assertNotIn(TOKEN, json.dumps(result))
+    def test_error_vocabulary_never_copies_unknown_provider_words(self):
+        value = event()
+        value['task'] = dict(finishedAt='2026-10-11', successful=False, result=None,
+                            errorMessage='publishing app_store_connect auth integration required ' + TOKEN)
+        result = m.classify([value])
+        self.assertEqual(result['validation_terms'], ['publishing', 'app_store_connect', 'auth', 'integration', 'required'])
+        self.assertNotIn('secret', json.dumps(result))
 if __name__ == '__main__':
     unittest.main()

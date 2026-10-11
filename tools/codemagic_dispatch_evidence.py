@@ -14,6 +14,7 @@ REPORT = Path('artifacts/codemagic-dispatch-evidence.json')
 FIELDS = {'webhooks', 'results', 'result', 'request', 'response', 'task', 'payload', 'body', 'data', 'message',
           'startedBuilds', 'cancelledBuilds', 'skippedWorkflows', 'branch', 'commitHash', 'commit', 'ref', 'sha',
           'status', 'headers', 'event', 'createdAt', 'timestamp', 'id', '_id'}
+ERROR_TERMS = set('app store connect app_store_connect publishing auth integration integrations required missing invalid unknown not found enabled disabled supported unsupported cannot must should be configured configure key name reference environment variable variables resolve resolved credentials provided specified workflow workflows configuration validation error failed value false true string boolean api api_key key_id issuer_id $asc_key_alias expire_build_submitted_for_review cancel_previous_submissions submit_to_testflight submit_to_app_store'.split())
 
 
 def classify(payload):
@@ -68,6 +69,11 @@ def classify(payload):
         if isinstance(skipped, list):
             result['skipped_workflow_count'] = min(len(skipped), 100)
     text = json.dumps([data, task] if isinstance(task, dict) else data).lower()
+    error_text = str(task.get('errorMessage') or task.get('error') or '') if isinstance(task, dict) else ''
+    # A finite vocabulary gives the validation context without copying arbitrary
+    # provider text, account identifiers, URLs or credential fragments.
+    result['validation_terms'] = [word for word in re.findall(r'\$?[a-z][a-z_]*', error_text.lower())[:500]
+                                  if word in ERROR_TERMS][:100]
     patterns = {
         'CONFIGURATION_REJECTED': r'validat|configuration|yaml.*error|error.*yaml|invalid.*(?:publish|config)',
         'PUBLISHING_CONFIGURATION_REJECTED': r'publish|app.store.connect',
