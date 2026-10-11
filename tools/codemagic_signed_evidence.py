@@ -257,12 +257,15 @@ def classify_log(raw):
                     'OWNER_TESTER_IDENTITY_UNVERIFIED','OWNER_TESTER_MEMBERSHIP_UNVERIFIED'}
                     or re.fullmatch('APPLE_HTTP_[1-5][0-9]{2}', code)):
                 result['owner_group_diagnostic'] = code
-            if candidate.get('owner_tester_stage') in {'group_read','tester_read','tester_create','group_assign','tester_verify','group_verify'}:
+            if candidate.get('owner_tester_stage') in {'group_read','tester_read','existing_owner_read','tester_create','group_assign','tester_verify','group_verify'}:
                 result['owner_tester_stage']=candidate['owner_tester_stage']
             for key in ('tester_rows_are_list','tester_lookup_has_next'):
                 if type(candidate.get(key)) is bool:result[key]=candidate[key]
             count=candidate.get('tester_lookup_count')
             if type(count) is int and 0 <= count <= 2:result['tester_lookup_count']=count
+            for key in ('existing_candidate_count','internal_candidate_count'):
+                count=candidate.get(key)
+                if type(count) is int and 0 <= count <= 50:result[key]=count
     return result
 
 
