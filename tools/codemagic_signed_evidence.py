@@ -10,9 +10,9 @@ import urllib.request
 from tools.codemagic_read_access import APP_ID, NoRedirect, write_report
 from tools.codemagic_apple_evidence import DIAGNOSTICS as APPLE_DIAGNOSTICS
 
-BUILD = '6acad8ad59e0a0dce27b4235'
-COMMIT = '4a3df353ec2f5c411344d8a058172c80eb480b4e'
-BRANCH = 'codex/owner-testflight-group-1b4664d'
+BUILD = '6acad9c42e8bb15cf3ab0541'
+COMMIT = '13030acc409a46d543eff27b69250aae9308a8c6'
+BRANCH = 'codex/owner-testflight-group-auth-a54f8c4'
 NATIVE = '300dc7f7143c3c9e6fc0615effe70bd10efb6950'
 NAME = 'signed-package-result.json'
 STEP = 'Prepare the private signed package without uploading'
