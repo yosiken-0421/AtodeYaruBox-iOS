@@ -1,6 +1,8 @@
 import io
 import json
 import unittest
+import contextlib
+from unittest.mock import patch
 from tools import codemagic_signed_evidence as m
 
 TOKEN = 'synthetic-token-not-a-real-credential'
@@ -30,6 +32,12 @@ class Transport:
 
 
 class Checks(unittest.TestCase):
+    def test_plain_public_mode_refuses_account_eligibility_output(self):
+        written=[];output=io.StringIO()
+        with patch.object(m,'inspect',return_value={'signed_report':{'status':'OWNER_TESTFLIGHT_ELIGIBILITY_READ','private':TOKEN}}),patch.object(m,'write_report',side_effect=lambda p,v:written.append(v)),contextlib.redirect_stdout(output):
+            self.assertEqual(m.main(),1)
+        self.assertEqual(output.getvalue().strip(),'PRIVATE_READER_REQUIRED')
+        self.assertNotIn(TOKEN,json.dumps(written))
     def test_owner_eligibility_result_omits_identifiers_email_and_roles(self):
         p=dict(status='OWNER_TESTFLIGHT_ELIGIBILITY_READ',app_record_id='6821479152',
             apple_build_id='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea',owner_internal_group_verified=True,

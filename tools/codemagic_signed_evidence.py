@@ -361,6 +361,10 @@ def inspect(token, opener=None, storage=None):
 def main():
     write_report(REPORT, {'status': 'NOT_RUN', 'app_id': APP_ID})
     result = inspect(os.environ.pop('CODEMAGIC_API_TOKEN', ''))
+    if result.get('signed_report',{}).get('status')=='OWNER_TESTFLIGHT_ELIGIBILITY_READ':
+        write_report(REPORT,{'status':'PRIVATE_READER_REQUIRED'})
+        print('PRIVATE_READER_REQUIRED')
+        return 1
     source = os.environ.get('GITHUB_SHA', '')
     if re.fullmatch(r'[0-9a-f]{40}', source):
         result['source_commit'] = source

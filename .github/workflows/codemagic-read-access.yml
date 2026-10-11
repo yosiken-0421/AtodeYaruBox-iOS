@@ -14,7 +14,8 @@
             "apple_evidence",
             "configure_signing_key",
             "signed_evidence",
-            "dispatch_evidence"
+            "dispatch_evidence",
+            "private_evidence"
           ]
         }
       }
@@ -113,8 +114,21 @@
           "run": "python3 -m tools.codemagic_dispatch_evidence"
         },
         {
+          "name": "Prepare and verify the private evidence encryption runtime",
+          "if": "inputs.mode == 'private_evidence'",
+          "run": "python3 -m venv .venv-private-read\n.venv-private-read/bin/python -m pip --isolated install --disable-pip-version-check --retries 1 --timeout 20 --index-url https://pypi.org/simple cryptography==50.0.2\n.venv-private-read/bin/python -m unittest -v tools.tests.test_codemagic_private_evidence"
+        },
+        {
+          "name": "Encrypt private evidence with the owner public key",
+          "if": "inputs.mode == 'private_evidence'",
+          "env": {
+            "CODEMAGIC_API_TOKEN": "${{ secrets.CODEMAGIC_API_TOKEN }}"
+          },
+          "run": ".venv-private-read/bin/python -m tools.codemagic_private_evidence"
+        },
+        {
           "name": "Show sanitized access result",
-          "if": "always()",
+          "if": "always() && inputs.mode != 'private_evidence'",
           "run": "python3 -c \"from pathlib import Path; [print(p.read_text()) for p in (Path('artifacts/codemagic-read-access.json'), Path('artifacts/codemagic-integration-read.json'), Path('artifacts/codemagic-alias-variable.json'), Path('artifacts/codemagic-apple-evidence.json'), Path('artifacts/codemagic-signing-key.json'), Path('artifacts/codemagic-signed-evidence.json'), Path('artifacts/codemagic-dispatch-evidence.json')) if p.exists()]\""
         }
       ]
