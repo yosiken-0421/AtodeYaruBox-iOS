@@ -272,6 +272,9 @@ def classify_log(raw):
             codes=candidate.get('apple_error_codes')
             if isinstance(codes,list) and len(codes)<=4 and all(isinstance(x,str) and re.fullmatch(r'(ENTITY_ERROR|STATE_ERROR|PARAMETER_ERROR|FORBIDDEN_ERROR|NOT_FOUND|ENTITY_UNPROCESSABLE)(\.[A-Z_0-9]{1,60}){0,3}',x) for x in codes):
                 result['apple_error_codes']=codes
+            summary=candidate.get('apple_error_summary')
+            if isinstance(summary,str) and re.fullmatch(r'[A-Za-z .,:;()/\-]{1,300}',summary) and not any(x in summary.lower() for x in ('bearer','private key','begin ec','begin rsa')):
+                result['apple_error_summary']=summary
     return result
 
 
