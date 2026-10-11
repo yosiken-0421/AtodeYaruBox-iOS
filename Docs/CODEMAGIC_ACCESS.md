@@ -90,3 +90,5 @@ Appleへの要求は、このアプリの3つのBundle IDと配布用証明書�
 実iOS検証済みソースは `300dc7f`、Unit 76件・UI 10件が成功しています。今回の接続修正はSwift・Xcode構成・iOSテストを変更しません。実機へのインストール、署名済みIPA、TestFlight送信は未完了です。
 
 公式仕様：[Codemagic API認証](https://docs.codemagic.io/rest-api/codemagic-rest-api/)、[アプリAPI](https://docs.codemagic.io/rest-api/applications/)、[App Store Connect連携](https://docs.codemagic.io/yaml-publishing/app-store-connect/)、[Codemagic CLIのキー参照](https://github.com/codemagic-ci-cd/cli-tools/blob/master/docs/app-store-connect/README.md)、[GitHub Actions secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)。
+
+本人登録の追加ガード：Appを指定した本人検索が空の場合だけ、確認済みの本人メールと既存内部グループ1件で登録します。別Appのテスターレコードを自動転用せず、登録後に対象Appのメンバーと役割を読み直します。補助75件成功。アプリ本体の再ビルド・再送信は行いません。
