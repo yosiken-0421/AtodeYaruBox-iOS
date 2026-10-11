@@ -52,5 +52,21 @@ class Checks(unittest.TestCase):
         self.assertIn('CONFIGURATION_REJECTED', result['reason_codes'])
         self.assertIn('INTEGRATION_REFERENCE_REJECTED', result['reason_codes'])
         self.assertNotIn(TOKEN, json.dumps(result))
+    def test_observed_webhook_response_envelope_is_recognized(self):
+        value = event()
+        value['response'] = value.pop('results')
+        result = m.classify([value])
+        self.assertTrue(result['matching_dispatch_found'])
+        self.assertEqual(result['started_build_ids'], ['a'*24])
+    def test_provider_task_result_and_error_are_classified_without_private_text(self):
+        value = event()
+        value['task'] = dict(finishedAt='2026-10-11', successful=True, result=value.pop('results'))
+        self.assertEqual(m.classify([value])['started_build_ids'], ['a'*24])
+        value['task'] = dict(finishedAt='2026-10-11', successful=False, errorMessage='Invalid publishing configuration ' + TOKEN)
+        result = m.classify([value])
+        self.assertTrue(result['task_finished'])
+        self.assertFalse(result['task_successful'])
+        self.assertIn('CONFIGURATION_REJECTED', result['reason_codes'])
+        self.assertNotIn(TOKEN, json.dumps(result))
 if __name__ == '__main__':
     unittest.main()

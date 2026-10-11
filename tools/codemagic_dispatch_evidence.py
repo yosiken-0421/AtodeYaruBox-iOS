@@ -11,7 +11,7 @@ BRANCH = 'codex/owner-testflight-cc30610'
 COMMIT = '40af4c84d488e0fb787780bdaab57aeab7872b2f'
 URL = 'https://api.codemagic.io/apps/' + APP_ID + '/webhooks'
 REPORT = Path('artifacts/codemagic-dispatch-evidence.json')
-FIELDS = {'webhooks', 'results', 'result', 'request', 'response', 'payload', 'body', 'data', 'message',
+FIELDS = {'webhooks', 'results', 'result', 'request', 'response', 'task', 'payload', 'body', 'data', 'message',
           'startedBuilds', 'cancelledBuilds', 'skippedWorkflows', 'branch', 'commitHash', 'commit', 'ref', 'sha',
           'status', 'headers', 'event', 'createdAt', 'timestamp', 'id', '_id'}
 
@@ -25,7 +25,7 @@ def classify(payload):
             return
         if isinstance(value, dict):
             serialized = json.dumps(value)
-            if BRANCH in serialized and COMMIT in serialized and ('results' in value or 'result' in value):
+            if BRANCH in serialized and COMMIT in serialized and any(k in value for k in ('results', 'result', 'response', 'task')):
                 candidates.append(value)
             for entry in value.values():
                 if isinstance(entry, (dict, list)):
@@ -43,7 +43,18 @@ def classify(payload):
         return result
     entry = min(candidates, key=lambda value: len(json.dumps(value)))
     result['matched_record_fields'] = sorted(set(entry) & FIELDS)
-    data = entry.get('results', entry.get('result'))
+    task = entry.get('task')
+    if isinstance(task, dict):
+        result['task_finished'] = bool(task.get('finishedAt'))
+        result['task_successful'] = task.get('successful') is True
+        data = task.get('result', task.get('errorMessage'))
+    else:
+        data = entry.get('results', entry.get('result', entry.get('response')))
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except ValueError:
+            pass
     if isinstance(data, dict):
         started = data.get('startedBuilds', [])
         if isinstance(started, list):
