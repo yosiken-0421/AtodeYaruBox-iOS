@@ -30,6 +30,15 @@ class Transport:
 
 
 class Checks(unittest.TestCase):
+    def test_owner_group_proof_cannot_disclose_or_invite_anybody(self):
+        payload = dict(status='OWNER_INTERNAL_TESTFLIGHT_GROUP_READY', app_record_id='6821479152',
+            apple_build_id='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea', group_id='b'*36,
+            owner_internal_group_verified=True, owner_internal_build_assigned=True,
+            public_link_enabled=False, automatic_future_builds=False, testers_invited=0,
+            apple_resources_modified=True, binary_uploaded=False, billing_modified=False, private_key_disclosed=False, private=TOKEN)
+        self.assertNotIn(TOKEN, json.dumps(m.sanitize(payload)))
+        for change in ({'app_record_id':'other'}, {'public_link_enabled':True}, {'testers_invited':1}, {'automatic_future_builds':True}, {'group_id':TOKEN}):
+            self.assertIsNone(m.sanitize(payload | change))
     def test_apple_read_requires_exact_eligible_internal_build_without_mutation(self):
         payload = report() | dict(status='APPLE_TESTFLIGHT_BUILD_READ', stage='testflight_read',
             apple_resources_modified=False, app_record_id='6821479152', app_store_binary_present=True,

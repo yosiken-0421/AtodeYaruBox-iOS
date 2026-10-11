@@ -1,5 +1,7 @@
 # CodemagicとAppleへの接続確認
 
+Apple側で版0.1.0(1)の受領・処理完了 `VALID` と `READY_FOR_BETA_TESTING`、`INTERNAL_ONLY`、本体ID・iOS版・暗号化申告の一致を確認しました。[Apple受領の実照合](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38098344595)は補助27件成功。ビルドIDは `3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea`。この観測では割当済み内部グループは0件です。本人のテスト用アカウント確認を待ちながら、当該ビルド1件だけを対象とする内部グループを準備します。公開リンク・他のテスターへの招待・今後の全ビルドへの自動アクセスは有効にしません。iPhoneインストール・実機QAは未実行です。
+
 2026-10-11：本人が許可した[内部TestFlight送信ジョブ](https://codemagic.io/app/6ac5b7b31811e71b67b38c2a/build/6acad54659e0a0dce27b39a6)が成功終了しました。[照合記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38098072454)で補助70件成功、署名済み3製品、Compile Error 0・コンパイラWarning 0、既存Profileの再利用を確認しました。送信前の署名検証レポートの`binary_uploaded=false`と、その後に成功した送信工程を区別しています。新IPAは790043 bytes、SHA-256 `bdce41f47cabbcf11ff72fa5852892d5e266217eddd9335597a84abdaf8a3ffc`。Appleでの処理完了・内部テスト可否は次のGET専用照合で確認します。追加支払い、App Store審査提出、外部テスター招待は行っていません。
 
 [実Macの署名ビルド](https://codemagic.io/app/6ac5b7b31811e71b67b38c2a/build/6aca035e59e0a0dce2786763)が成功しました。[固定結果の照合記録](https://github.com/yosiken-0421/AtodeYaruBox-iOS/actions/runs/38041236848)で`SIGNED_PACKAGE_VERIFIED`、Compile Error 0・コンパイラWarning 0、補助59件成功を確認。本体・共有拡張・WidgetのArchiveとIPAの署名、正しいID・Team・共有領域、期限内のApp Store用Profileと証明書一致を検証済みです。IPAは790041 bytes、SHA-256は`78bd5db499361a67869984bb7e34781b50f39b9a147c510e03449f1ccf5ed9b1`です。非公開CIにのみ保存し、Appleへのバイナリ送信は行っていません。

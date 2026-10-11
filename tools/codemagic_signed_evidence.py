@@ -52,6 +52,17 @@ DIAGNOSTICS = APPLE_DIAGNOSTICS | {
 
 
 def sanitize(payload):
+    if isinstance(payload, dict) and payload.get('status') == 'OWNER_INTERNAL_TESTFLIGHT_GROUP_READY':
+        if (payload.get('app_record_id') != '6821479152'
+                or payload.get('apple_build_id') != '3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea'
+                or not isinstance(payload.get('group_id'), str) or not re.fullmatch('[0-9a-fA-F-]{36}', payload['group_id'])
+                or payload.get('owner_internal_group_verified') is not True or payload.get('owner_internal_build_assigned') is not True
+                or any(payload.get(k) is not False for k in ('public_link_enabled', 'automatic_future_builds', 'binary_uploaded', 'billing_modified', 'private_key_disclosed'))
+                or type(payload.get('apple_resources_modified')) is not bool or type(payload.get('testers_invited')) is not int or payload['testers_invited'] != 0):
+            return None
+        return {k: payload[k] for k in ('status', 'app_record_id', 'apple_build_id', 'group_id',
+            'owner_internal_group_verified', 'owner_internal_build_assigned', 'public_link_enabled',
+            'automatic_future_builds', 'testers_invited', 'apple_resources_modified', 'binary_uploaded', 'billing_modified', 'private_key_disclosed')}
     if (not isinstance(payload, dict) or not isinstance(payload.get('status'), str)
             or payload.get('status') not in {'NOT_RUN', 'NOT_VERIFIED', 'APPLE_TESTFLIGHT_BUILD_PENDING', 'APPLE_TESTFLIGHT_BUILD_READ', 'APP_RECORD_READ', 'SIGNED_PACKAGE_VERIFIED', 'SIGNING_INVENTORY_READ', 'DISTRIBUTION_PROFILES_VERIFIED'}
             or payload.get('verified_native_source') != NATIVE or not isinstance(payload.get('stage'), str)
@@ -194,6 +205,15 @@ def classify_log(raw):
         report = sanitize(candidate)
         if report is not None:
             result['signed_report'] = report
+        if (isinstance(candidate, dict) and candidate.get('status') == 'NOT_VERIFIED'
+                and candidate.get('testers_invited') == 0 and candidate.get('binary_uploaded') is False
+                and candidate.get('billing_modified') is False and candidate.get('private_key_disclosed') is False):
+            code = candidate.get('diagnostic')
+            if isinstance(code, str) and (code in {'OWNER_GROUP_ROUTE_REFUSED', 'OWNER_GROUP_BODY_OR_REPLAY_REFUSED',
+                    'OWNER_GROUP_RESPONSE_LIMIT', 'OWNER_GROUP_OUTCOME_UNAVAILABLE', 'OWNER_GROUP_RESPONSE_UNVERIFIED',
+                    'OWNER_GROUP_IDENTITY_UNVERIFIED', 'OWNER_GROUP_APP_UNVERIFIED', 'OWNER_GROUP_BUILD_UNVERIFIED', 'OWNER_GROUP_ASSIGNMENT_UNVERIFIED'}
+                    or re.fullmatch('APPLE_HTTP_[1-5][0-9]{2}', code)):
+                result['owner_group_diagnostic'] = code
     return result
 
 
