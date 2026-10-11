@@ -68,5 +68,14 @@ class Checks(unittest.TestCase):
         self.assertFalse(result['task_successful'])
         self.assertIn('CONFIGURATION_REJECTED', result['reason_codes'])
         self.assertNotIn(TOKEN, json.dumps(result))
+    def test_null_result_does_not_hide_finished_task_error(self):
+        value = event()
+        value['task'] = dict(finishedAt='2026-10-11', successful=False, result=None,
+                            errorMessage='Invalid publishing configuration ' + TOKEN)
+        result = m.classify([value])
+        self.assertIn('CONFIGURATION_REJECTED', result['reason_codes'])
+        self.assertTrue(result['task_error_present'])
+        self.assertFalse(result['task_result_present'])
+        self.assertNotIn(TOKEN, json.dumps(result))
 if __name__ == '__main__':
     unittest.main()

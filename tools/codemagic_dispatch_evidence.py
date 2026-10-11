@@ -47,7 +47,10 @@ def classify(payload):
     if isinstance(task, dict):
         result['task_finished'] = bool(task.get('finishedAt'))
         result['task_successful'] = task.get('successful') is True
-        data = task.get('result', task.get('errorMessage'))
+        data = task.get('result') or task.get('errorMessage') or task.get('error')
+        result['task_fields'] = sorted(set(task) & {'finishedAt', 'successful', 'result', 'errorMessage', 'error', 'message', 'status'})
+        result['task_result_present'] = task.get('result') is not None
+        result['task_error_present'] = bool(task.get('errorMessage') or task.get('error'))
     else:
         data = entry.get('results', entry.get('result', entry.get('response')))
     if isinstance(data, str):
@@ -64,7 +67,7 @@ def classify(payload):
         skipped = data.get('skippedWorkflows', [])
         if isinstance(skipped, list):
             result['skipped_workflow_count'] = min(len(skipped), 100)
-    text = json.dumps(data).lower()
+    text = json.dumps([data, task] if isinstance(task, dict) else data).lower()
     patterns = {
         'CONFIGURATION_REJECTED': r'validat|configuration|yaml.*error|error.*yaml|invalid.*(?:publish|config)',
         'PUBLISHING_CONFIGURATION_REJECTED': r'publish|app.store.connect',
@@ -72,6 +75,9 @@ def classify(payload):
         'SUBSCRIPTION_OR_BUDGET_REJECTED': r'subscription|billing|free.*limit|minute.*limit',
         'TRIGGER_DID_NOT_MATCH': r'no.*workflow|branch.*match|skip.*workflow',
         'PROVIDER_ERROR': r'error|failed|invalid|reject',
+        'COMMIT_SKIP_DIRECTIVE': r'skip.ci|ci.skip|skip.*commit|commit.*skip',
+        'CONFIGURATION_FILE_MISSING': r'(?:yaml|configuration).*not.found|no.*(?:yaml|configuration)|missing.*(?:yaml|configuration)',
+        'REPOSITORY_ACCESS_REJECTED': r'permission|access.*denied|repository.*(?:not.found|unavailable)|github.*(?:token|auth)',
     }
     result['reason_codes'] = sorted(name for name, pattern in patterns.items() if re.search(pattern, text))
     result['referenced_configuration_fields'] = sorted(name for name in (
