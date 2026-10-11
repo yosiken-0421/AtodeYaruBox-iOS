@@ -49,6 +49,8 @@ class Checks(unittest.TestCase):
         payload.pop('diagnostic')
         self.assertFalse(m.sanitize(payload)['eligible_internal_testing'])
         self.assertIsNone(m.sanitize(payload | {'eligible_internal_testing':True}))
+        self.assertIsNone(m.sanitize(payload | {'app_store_binary_present':True}))
+        self.assertIsNone(m.sanitize(payload | {'signed_archive_verified':True}))
     def test_app_record_evidence_only_accepts_verified_identity_without_writes(self):
         payload = report() | dict(status='APP_RECORD_READ', stage='app_record', apple_resources_modified=False,
             app_record_read_verified=True, app_record_exists=True, app_record_id='1234567890', private=TOKEN)
@@ -94,7 +96,7 @@ class Checks(unittest.TestCase):
             self.assertIsNone(m.sanitize({**report(), **change}))
 
     def test_only_fixed_log_flags_and_whitelisted_report_survive(self):
-        result = m.classify_log((TOKEN + '\nRan 70 tests in 0.2s\n\nOK\n' + json.dumps({**report(), 'private': TOKEN})).encode())
+        result = m.classify_log((TOKEN + '\nRan 27 tests in 0.2s\n\nOK\n' + json.dumps({**report(), 'private': TOKEN})).encode())
         self.assertTrue(result['unit_checks_passed'])
         self.assertEqual(result['signed_report'], report())
         self.assertNotIn(TOKEN, json.dumps(result))

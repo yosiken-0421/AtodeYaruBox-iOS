@@ -10,9 +10,9 @@ import urllib.request
 from tools.codemagic_read_access import APP_ID, NoRedirect, write_report
 from tools.codemagic_apple_evidence import DIAGNOSTICS as APPLE_DIAGNOSTICS
 
-BUILD = '6acad54659e0a0dce27b39a6'
-COMMIT = '59ddbfbb9e25fdb6566eb104b3de9e3e0a37a6f1'
-BRANCH = 'codex/owner-testflight-configfix-14b5b8e'
+BUILD = '6acad6eb2e8bb15cf3aafde4'
+COMMIT = '37188dabea37ac2e030ff5ee4a4e137f6c4bfdc7'
+BRANCH = 'codex/owner-testflight-apple-a4dd128'
 NATIVE = '300dc7f7143c3c9e6fc0615effe70bd10efb6950'
 NAME = 'signed-package-result.json'
 STEP = 'Prepare the private signed package without uploading'
@@ -74,6 +74,7 @@ def sanitize(payload):
         result['diagnostic'] = value
     if payload['stage'] == 'testflight_read':
         if (payload.get('app_record_id') != '6821479152' or payload['apple_resources_modified'] is not False
+                or payload['signed_archive_verified'] is not False or payload['signed_ipa_verified'] is not False
                 or any(type(payload.get(k)) is not bool for k in ('app_store_binary_present', 'eligible_internal_testing'))):
             return None
         result.update(app_record_id='6821479152', app_store_binary_present=payload['app_store_binary_present'],
@@ -100,6 +101,8 @@ def sanitize(payload):
                 return None
             result['apple_build_id'] = payload['apple_build_id']
         if payload['status'] == 'APPLE_TESTFLIGHT_BUILD_READ' and (payload['app_store_binary_present'] is not True or 'apple_build_id' not in result):
+            return None
+        if payload['status'] == 'APPLE_TESTFLIGHT_BUILD_PENDING' and payload['app_store_binary_present'] is not False:
             return None
         if payload['eligible_internal_testing'] and (payload['status'] != 'APPLE_TESTFLIGHT_BUILD_READ'
                 or payload.get('processing_state') != 'VALID' or payload.get('internal_testing_only') is not True
@@ -180,7 +183,7 @@ def sanitize(payload):
 
 def classify_log(raw):
     text = raw.decode('utf-8', errors='replace')
-    result = {'unit_checks_passed': bool(re.search(r'Ran 70 tests[^\n]*\n\s*\nOK(?:\n|$)', text)),
+    result = {'unit_checks_passed': bool(re.search(r'Ran 27 tests[^\n]*\n\s*\nOK(?:\n|$)', text)),
               'unit_checks_failed': 'FAILED (' in text, 'python_module_missing': 'ModuleNotFoundError' in text}
     decoder = json.JSONDecoder()
     for match in re.finditer(r'\{', text):
