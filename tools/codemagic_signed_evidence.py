@@ -269,6 +269,9 @@ def classify_log(raw):
             categories=candidate.get('apple_error_categories')
             if isinstance(categories,list) and len(categories)<=4 and all(x in {'RELATIONSHIP_INVALID','ATTRIBUTE_EXISTS','ATTRIBUTE_INVALID','CONTRACT_MISSING','OTHER'} for x in categories):
                 result['apple_error_categories']=categories
+            codes=candidate.get('apple_error_codes')
+            if isinstance(codes,list) and len(codes)<=4 and all(isinstance(x,str) and re.fullmatch('(ENTITY_ERROR|STATE_ERROR|PARAMETER_ERROR|FORBIDDEN_ERROR|NOT_FOUND|ENTITY_UNPROCESSABLE)(\.[A-Z_0-9]{1,60}){0,3}',x) for x in codes):
+                result['apple_error_codes']=codes
     return result
 
 
