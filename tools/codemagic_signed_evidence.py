@@ -259,6 +259,10 @@ def classify_log(raw):
                 result['owner_group_diagnostic'] = code
             if candidate.get('owner_tester_stage') in {'group_read','tester_read','tester_create','group_assign','tester_verify','group_verify'}:
                 result['owner_tester_stage']=candidate['owner_tester_stage']
+            for key in ('tester_rows_are_list','tester_lookup_has_next'):
+                if type(candidate.get(key)) is bool:result[key]=candidate[key]
+            count=candidate.get('tester_lookup_count')
+            if type(count) is int and 0 <= count <= 2:result['tester_lookup_count']=count
     return result
 
 
