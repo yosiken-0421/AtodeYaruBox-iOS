@@ -209,6 +209,7 @@
 				"3CA97BD797C8653784052808",
 				"B2BA7A63971E6DB6558715CD",
 				"BAFC27CD8E34AC6F7E5925DE",
+				"89796C7EB95A29D0806258E4",
 				"8FA1A2C3F5157A637B2A31D0",
 				"5D9DF1A6D9A1935A4A313158",
 				"2F12E3BAA8A0D8F3305F74A7",
@@ -256,6 +257,7 @@
 				"A5F6A4F81878E4D44DA46AFE",
 				"39CB7CEFBC90AAB615F42C40",
 				"873CDC41B503A48906BD0DA9",
+				"D05E66F060A764A1B4CE7403",
 				"F9DC003BD711BD4B53DFB57E",
 				"6431E79515A8B92EFFFAAD55",
 				"F98C0109A85103436EB1EA24",
@@ -1223,6 +1225,12 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "E0F7526F151FA4CD28C1B07C";
 		};
+		"89796C7EB95A29D0806258E4" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AtodeYaruBox/Views/Components/ShareActivitySheet.swift";
+			"sourceTree" = "<group>";
+		};
 		"8BB814F4FC1510289E7C2800" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -1828,6 +1836,10 @@
 			"lastKnownFileType" = "text.plist.xml";
 			"path" = "Config/Widgets-Info.plist";
 			"sourceTree" = "<group>";
+		};
+		"D05E66F060A764A1B4CE7403" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "89796C7EB95A29D0806258E4";
 		};
 		"D1F69FF89109574A8D96B7ED" = {
 			"isa" = "PBXFileReference";

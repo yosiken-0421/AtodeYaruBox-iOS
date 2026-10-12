@@ -54,7 +54,7 @@ final class ExternalInputFlowTests: XCTestCase {
         // Let the system library finish its initial load before querying thumbnails.
         let photoReady = NSPredicate { _, _ in self.photoCandidate(app) != nil }
         let ready = XCTNSPredicateExpectation(predicate: photoReady, object: app)
-        let readyResult = XCTWaiter.wait(for: [ready], timeout: 30)
+        let readyResult = XCTWaiter.wait(for: [ready], timeout: 45)
         XCTAssertEqual(readyResult, .completed, "PHOTO_PICKER_NO_VISIBLE_CELL; " + controls(app))
         let photo = try XCTUnwrap(photoCandidate(app))
         let selectedLabel = String(photo.label.prefix(120))
@@ -192,18 +192,17 @@ final class ExternalInputFlowTests: XCTestCase {
         app.buttons["detailButton"].firstMatch.tap()
         XCTAssertTrue(app.buttons["確認しました"].waitForExistence(timeout: 5))
         let address = try XCTUnwrap(ProcessInfo.processInfo.environment["ATODE_QA_LOOPBACK_URL"])
+        reveal(app.staticTexts[address], in: app)
         XCTAssertTrue(app.staticTexts[address].exists)
         attachment(app, name: "SafariSharedItemInHost")
     }
 
     @MainActor private func photoCandidate(_ app: XCUIApplication) -> XCUIElement? {
-        let photos = NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS %@ OR label CONTAINS %@ OR label CONTAINS[c] %@", "photo", "写真", "画像", "screenshot")
         for surface in foregroundSurfaces(app) {
             let window = surface.windows.firstMatch
             guard window.exists else { continue }
             let viewport = window.frame
-            for query in [surface.cells, surface.collectionViews.images, surface.collectionViews.buttons,
-                          surface.images.matching(photos), surface.buttons.matching(photos)] {
+            for query in [surface.collectionViews.cells, surface.collectionViews.images, surface.collectionViews.buttons] {
                 // Bind the actual accessibility element: picker contents can
                 // change while loading, invalidating a query's numerical index.
                 let images = query.allElementsBoundByAccessibilityElement.filter {

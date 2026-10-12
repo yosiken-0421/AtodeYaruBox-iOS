@@ -1,14 +1,7 @@
 import Foundation
-import CoreTransferable
-import UniformTypeIdentifiers
 
-struct TaskShareExport: Transferable, Sendable {
+struct TaskShareExport: Sendable {
     let document: SharedTaskDocument
-    static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(exportedContentType: .atodeTask) { value in
-            SentTransferredFile(try value.makeFile())
-        }
-    }
     func makeFile() throws -> URL {
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TaskShares", isDirectory: true)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

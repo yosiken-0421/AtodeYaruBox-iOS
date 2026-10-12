@@ -26,10 +26,8 @@ struct CalendarView: View {
                 Section {
                     monthControls
                     if typeSize.isAccessibilitySize {
-                        Button { choosingDay = true } label: {
-                            Label("日付を選ぶ：" + selectedDay.formatted(.dateTime.month().day()), systemImage: "calendar")
-                                .fixedSize(horizontal: false, vertical: true).frame(minHeight: 44)
-                        }.accessibilityIdentifier("calendarChooseDayButton")
+                        BoxActionButton(title: "日付を選ぶ：" + selectedDay.formatted(.dateTime.month().day()),
+                                        symbol: "calendar", identifier: "calendarChooseDayButton") { choosingDay = true }
                     } else {
                         ScrollView(.horizontal) {
                             VStack(spacing: 8) {
@@ -47,7 +45,10 @@ struct CalendarView: View {
                     }
                     Text("数字の下は項目の件数です。日付を押すと、その日の内容を確認できます。")
                         .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    Toggle("完了した項目も表示", isOn: $includeCompleted).accessibilityIdentifier("calendarCompletedToggle")
+                    BoxActionButton(title: "完了した項目：" + (includeCompleted ? "表示する" : "表示しない"),
+                                    symbol: includeCompleted ? "checkmark.square" : "square", identifier: "calendarCompletedToggle") {
+                        includeCompleted.toggle()
+                    }
                 }
                 Section {
                     BoxActionButton(title: "この日に追加", symbol: "calendar.badge.plus", identifier: "calendarAddButton") {
@@ -81,11 +82,9 @@ struct CalendarView: View {
         .sheet(isPresented: $choosingDay) {
             NavigationStack {
                 List(CalendarMonth(containing: month, calendar: calendar).days) { day in
-                    Button { selectedDay = day.date; choosingDay = false } label: {
-                        Label(day.date.formatted(.dateTime.month().day().weekday(.wide)),
-                              systemImage: calendar.isDate(day.date, inSameDayAs: selectedDay) ? "checkmark.circle" : "calendar")
-                            .fixedSize(horizontal: false, vertical: true).frame(minHeight: 44)
-                    }.accessibilityIdentifier("calendarDay_\(day.number)")
+                    BoxActionButton(title: day.date.formatted(.dateTime.month().day().weekday(.wide)),
+                                    symbol: calendar.isDate(day.date, inSameDayAs: selectedDay) ? "checkmark.circle" : "calendar",
+                                    identifier: "calendarDay_\(day.number)") { selectedDay = day.date; choosingDay = false }
                 }
                 .navigationTitle("日付を選ぶ").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { choosingDay = false } } }

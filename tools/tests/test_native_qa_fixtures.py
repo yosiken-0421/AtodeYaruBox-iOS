@@ -51,6 +51,7 @@ class NativeFixtureTests(unittest.TestCase):
         stack.enter_context(patch.dict(module.os.environ, {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted"}))
         stack.enter_context(patch.object(module.subprocess, "check_output", return_value=self.inventory(state)))
         stack.enter_context(patch.object(module.subprocess, "run", side_effect=run or self.commands))
+        stack.enter_context(patch.object(module.time, "sleep", return_value=None))
         return stack
 
     def assertClosed(self, address):
@@ -92,7 +93,8 @@ class NativeFixtureTests(unittest.TestCase):
                 self.assertEqual(evidence["status"], "FIXTURES_READY_NOT_TEST_RESULT")
                 self.assertFalse(evidence["uses_personal_data"])
         self.assertEqual(self.calls[1][:4], ["xcrun", "simctl", "addmedia", UDID])
-        self.assertFalse(any("launch" in command for command in self.calls))
+        self.assertEqual(self.calls[2], ["xcrun", "simctl", "launch", UDID, "com.apple.mobileslideshow"])
+        self.assertEqual(self.calls[3], ["xcrun", "simctl", "terminate", UDID, "com.apple.mobileslideshow"])
         self.assertClosed(address)
 
     def testColdLibraryTimeoutStopsAfterOneRecoveryAndDoesNotStartSafariFixture(self):
@@ -138,7 +140,9 @@ class NativeFixtureTests(unittest.TestCase):
                 self.assertIn(UDID, command)
                 self.assertNotIn("all", command)
                 self.assertNotIn("erase", command)
-        self.assertFalse(any("launch" in command for command in self.calls))
+        self.assertEqual(sum("launch" in command for command in self.calls), 1)
+        self.assertEqual(self.calls[-2:], [["xcrun", "simctl", "launch", UDID, "com.apple.mobileslideshow"],
+                                        ["xcrun", "simctl", "terminate", UDID, "com.apple.mobileslideshow"]])
         self.assertClosed(address)
 
     def testRecoveryMigrationFailureWithExitZeroCannotImportOrClaimReadiness(self):
@@ -198,6 +202,19 @@ class NativeFixtureTests(unittest.TestCase):
                     self.fail("Missing photo silently accepted")
         evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
         self.assertEqual(evidence["status"], "FIXTURE_SETUP_FAILED_NOT_TEST_RESULT")
+
+    def testFailedPhotoWarmupCannotClaimReadyOrStartLoopback(self):
+        def fail_launch(arguments, **kwargs):
+            result = self.commands(arguments, **kwargs)
+            if "launch" in arguments: raise subprocess.CalledProcessError(1, arguments)
+            return result
+        with self.environment(run=fail_launch):
+            with self.assertRaises(subprocess.CalledProcessError):
+                with module.NativeQAFixtures(self.root, UDID): pass
+        evidence = json.loads((self.root / "artifacts/external-input-fixtures.json").read_text())
+        self.assertEqual(evidence["status"], "FIXTURE_SETUP_FAILED_NOT_TEST_RESULT")
+        self.assertEqual(evidence["stage"], "warm_synthetic_library")
+        self.assertFalse(any("terminate" in command for command in self.calls))
 
     def testColdGeneratorTimeoutCannotLaunchPhotosOrClaimReadiness(self):
         def timeout_generator(arguments, **kwargs):

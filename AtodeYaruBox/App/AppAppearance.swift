@@ -12,7 +12,7 @@ enum AppAppearance {
             item.normal.iconColor = .label
             item.normal.titleTextAttributes = [.foregroundColor: UIColor.label]
             item.selected.iconColor = accent
-            item.selected.titleTextAttributes = [.foregroundColor: accent]
+            item.selected.titleTextAttributes = [.foregroundColor: UIColor.label]
         }
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance

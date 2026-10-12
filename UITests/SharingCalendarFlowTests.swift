@@ -18,7 +18,12 @@ final class SharingCalendarFlowTests: XCTestCase {
     @MainActor private func audit(_ app: XCUIApplication, name: String) throws {
         let picture = XCTAttachment(screenshot: app.screenshot()); picture.name = name; picture.lifetime = .keepAlways; add(picture)
         let sizing: XCUIAccessibilityAuditType = [.dynamicType, .textClipped]
-        for types in [XCUIAccessibilityAuditType.all.subtracting(sizing), sizing] { try app.performAccessibilityAudit(for: types) }
+        for types in [XCUIAccessibilityAuditType.all.subtracting(sizing), sizing] {
+            try app.performAccessibilityAudit(for: types) { issue in
+                XCTFail("Audit [\(name)] type=\(issue.auditType.rawValue) | \(issue.detailedDescription) | identifier=\(issue.element?.identifier ?? "") label=\(issue.element?.label ?? "") frame=\(String(describing: issue.element?.frame))")
+                return false
+            }
+        }
         var previous: [CGRect] = []; var stable = 0
         let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             let frames = [app.navigationBars.firstMatch.frame, app.tabBars.firstMatch.frame]
@@ -49,7 +54,7 @@ final class SharingCalendarFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Calendar shared plan"].waitForExistence(timeout: 5))
         reveal(app.buttons["completeButton"].firstMatch, app: app); app.buttons["completeButton"].firstMatch.tap()
         XCTAssertFalse(app.staticTexts["Calendar shared plan"].exists)
-        let toggle = app.switches["calendarCompletedToggle"]; reveal(toggle, app: app); toggle.tap()
+        let toggle = app.buttons["calendarCompletedToggle"]; reveal(toggle, app: app); toggle.tap()
         XCTAssertTrue(app.staticTexts["Calendar shared plan"].waitForExistence(timeout: 5))
         reveal(app.staticTexts["Calendar shared plan"], app: app)
         let image = XCTAttachment(screenshot: app.screenshot()); image.name = "Calendar-Completed"; image.lifetime = .keepAlways; self.add(image)
@@ -59,7 +64,9 @@ final class SharingCalendarFlowTests: XCTestCase {
         app.buttons["detailButton"].firstMatch.tap(); app.buttons["shareItemButton"].tap()
         let preview = app.staticTexts["sharePreview"]; XCTAssertTrue(preview.waitForExistence(timeout: 5))
         XCTAssertFalse(preview.label.contains("Synthetic private note"))
-        app.switches["shareNoteToggle"].tap(); XCTAssertTrue(preview.label.contains("Synthetic private note"))
+        app.buttons["shareNoteToggle"].tap()
+        let noteVisible = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "Synthetic private note"), object: preview)
+        XCTAssertEqual(XCTWaiter.wait(for: [noteVisible], timeout: 5), .completed)
         try audit(app, name: "Share-Light-Preview")
         let share = app.buttons["shareTextButton"]; reveal(share, app: app); share.tap()
         let copy = app.buttons.matching(NSPredicate(format: "label IN %@", ["Copy", "コピー"])).firstMatch
