@@ -20,17 +20,21 @@ struct ShareTaskView: View {
     }
     var body: some View {
         Form {
-            Section("共有する内容") {
+            Section {
                 if item.dueDate != nil { choice("日時", value: $includeDate, identifier: "shareDateToggle") }
                 if !item.note.isEmpty { choice("メモ", value: $includeNote, identifier: "shareNoteToggle") }
                 if item.sourceURL.flatMap(URLValidator.webURL) != nil { choice("WebページのURL", value: $includeURL, identifier: "shareURLToggle") }
-                Text("写真・添付ファイル・読み取った原文は含まれません。")
-                    .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                BoxStatusText(text: "写真・添付ファイル・読み取った原文は含まれません。",
+                              identifier: "sharePrivacyNotice", textStyle: .footnote)
+            } header: {
+                header("共有する内容", identifier: "shareContentsHeader")
             }
-            Section("相手に渡す内容") {
+            Section {
                 BoxStatusText(text: SharedTaskCodec.text(document), identifier: "sharePreview")
+            } header: {
+                header("相手に渡す内容", identifier: "sharePreviewHeader")
             }
-            Section("共有方法") {
+            Section {
                 BoxActionButton(title: "文章で共有", symbol: "square.and.arrow.up", identifier: "shareTextButton") {
                     activity = ShareActivityPayload(content: .text(SharedTaskCodec.text(document)))
                 }.disabled(validationMessage != nil)
@@ -38,9 +42,11 @@ struct ShareTaskView: View {
                     do { activity = ShareActivityPayload(content: .file(try TaskShareExport(document: document).makeFile())) }
                     catch { sharingError = error.localizedDescription }
                 }.disabled(validationMessage != nil)
-                Text("相手も「あとでやる箱」を使っていれば、ファイルを開いて自分の箱へ保存できます。相手にコピーを渡すため、完了や変更は同期されません。")
-                    .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                BoxStatusText(text: "相手も「あとでやる箱」を使っていれば、ファイルを開いて自分の箱へ保存できます。相手にコピーを渡すため、完了や変更は同期されません。",
+                              identifier: "shareCopyNotice", textStyle: .footnote)
                 if let validationMessage { Label(validationMessage, systemImage: "exclamationmark.triangle") }
+            } header: {
+                header("共有方法", identifier: "shareMethodHeader")
             }
         }
         .navigationTitle("項目を共有").navigationBarTitleDisplayMode(.inline)
@@ -49,6 +55,9 @@ struct ShareTaskView: View {
         .alert("共有できませんでした", isPresented: Binding(get: { sharingError != nil }, set: { if !$0 { sharingError = nil } })) {
             Button("閉じる", role: .cancel) { sharingError = nil }
         } message: { Text(sharingError ?? "") }
+    }
+    private func header(_ title: String, identifier: String) -> some View {
+        BoxStatusText(text: title, headline: true, identifier: identifier, background: .systemGroupedBackground)
     }
     private func choice(_ title: String, value: Binding<Bool>, identifier: String) -> some View {
         BoxActionButton(title: title + (value.wrappedValue ? "：含める" : "：含めない"),

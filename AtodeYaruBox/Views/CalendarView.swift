@@ -33,12 +33,21 @@ struct CalendarView: View {
                             VStack(spacing: 8) {
                                 HStack(spacing: 2) {
                                     ForEach(model.weekdayLabels.indices, id: \.self) { index in
-                                        Text(model.weekdayLabels[index]).font(.caption).frame(maxWidth: .infinity).accessibilityHidden(true)
+                                        BoxStatusText(text: model.weekdayLabels[index], identifier: "calendarWeekday_\(index)",
+                                            textStyle: .caption1, centered: true, background: .systemBackground)
+                                            .frame(maxWidth: .infinity).accessibilityHidden(true)
                                     }
                                 }
                                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 44), spacing: 2), count: 7), spacing: 4) {
                                     ForEach(0..<model.leadingEmptyDays, id: \.self) { _ in Color.clear.frame(height: 1).accessibilityHidden(true) }
-                                    ForEach(model.days) { day in dayButton(day, count: counts[day.date] ?? 0, now: timeline.date, compact: true) }
+                                    ForEach(model.days) { day in
+                                        CalendarDayButton(number: day.number, count: counts[day.date] ?? 0,
+                                            today: calendar.isDate(day.date, inSameDayAs: timeline.date),
+                                            selected: calendar.isDate(day.date, inSameDayAs: selectedDay),
+                                            spokenDate: day.date.formatted(.dateTime.year().month().day().weekday(.wide))) {
+                                            selectedDay = day.date
+                                        }
+                                    }
                                 }
                             }.frame(minWidth: 320)
                         }.scrollIndicators(.hidden)
@@ -93,7 +102,8 @@ struct CalendarView: View {
     }
     private var monthControls: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(month, format: .dateTime.year().month(.wide)).font(.headline).accessibilityIdentifier("calendarMonthTitle")
+            BoxStatusText(text: month.formatted(.dateTime.year().month(.wide)), headline: true,
+                          identifier: "calendarMonthTitle", background: .systemBackground)
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 8) { monthButtons }
                 VStack(alignment: .leading, spacing: 8) { monthButtons }
@@ -110,40 +120,5 @@ struct CalendarView: View {
     private func changeMonth(_ amount: Int) {
         guard let date = calendar.date(byAdding: .month, value: amount, to: CalendarMonth(containing: month).start) else { return }
         month = date; selectedDay = calendar.startOfDay(for: date)
-    }
-    private func dayButton(_ day: CalendarDay, count: Int, now: Date, compact: Bool) -> some View {
-        let selected = calendar.isDate(day.date, inSameDayAs: selectedDay)
-        let today = calendar.isDate(day.date, inSameDayAs: now)
-        return Button { selectedDay = day.date } label: {
-            Group {
-                if compact {
-                    VStack(spacing: 4) {
-                        Text("\(day.number)").font(.body.weight(selected ? .bold : .regular))
-                        Text("\(count)件").font(.caption)
-                        if today { Text("今日").font(.caption2.bold()) }
-                        else if selected { Image(systemName: "checkmark").font(.caption2).accessibilityHidden(true) }
-                    }.frame(maxWidth: .infinity, minHeight: 76)
-                } else {
-                    HStack(alignment: .top) {
-                        Text(day.date, format: .dateTime.month().day().weekday(.wide)).fixedSize(horizontal: false, vertical: true)
-                        Spacer()
-                        VStack(alignment: .trailing) {
-                            Text("\(count)件")
-                            if today { Text("今日") }
-                            if selected { Label("選択中", systemImage: "checkmark") }
-                        }
-                    }.frame(minHeight: 44)
-                }
-            }
-            .padding(4).foregroundStyle(.primary)
-            .background(selected ? Color.boxAccent.opacity(0.12) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
-            .overlay { RoundedRectangle(cornerRadius: 8).stroke(selected ? Color.boxAccent : Color.clear, lineWidth: 2) }
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(day.date.formatted(.dateTime.year().month().day().weekday(.wide)) + "、\(count)件" + (today ? "、今日" : ""))
-        .accessibilityAddTraits(selected ? [.isSelected] : [])
-        .accessibilityHint("この日の項目を表示します")
-        .accessibilityIdentifier("calendarDay_\(day.number)")
     }
 }

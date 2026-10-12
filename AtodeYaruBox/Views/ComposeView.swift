@@ -32,7 +32,7 @@ struct ComposeView: View {
                     .accessibilityIdentifier("urlField")
             }
             Section("写真・ファイルから") {
-                PhotosPicker(selection: $photo, matching: .images) { Label("写真を選ぶ", systemImage: "photo") }
+                PhotosPicker(selection: $photo, matching: .images, photoLibrary: .shared()) { Label("写真を選ぶ", systemImage: "photo") }
                 Button { openCamera() } label: { Label("カメラで撮る", systemImage: "camera") }
                 Button { showingFilePicker = true } label: { Label("ファイルを選ぶ", systemImage: "doc") }
                 if let asset = model.asset {

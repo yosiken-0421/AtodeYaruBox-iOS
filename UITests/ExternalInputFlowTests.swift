@@ -45,6 +45,14 @@ final class ExternalInputFlowTests: XCTestCase {
     }
 
     @MainActor func testPhotosPickerReadsSelectedScreenshotAndSearchesOCR() throws {
+        // The selected CI guest contains only the generated image. Finish the
+        // stock library's first-run UI before asking its remote picker to load.
+        let library = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow")
+        library.launch()
+        let continueButton = library.buttons.matching(NSPredicate(format: "label IN %@", ["Continue", "続ける", "Get Started", "使い始める"])).firstMatch
+        if continueButton.waitForExistence(timeout: 3), continueButton.isHittable { continueButton.tap() }
+        _ = library.collectionViews.cells.firstMatch.waitForExistence(timeout: 10)
+        attachment(library, name: "SyntheticPhotosLibraryBeforePicker")
         let app = host()
         app.buttons["addButton"].tap()
         let choose = app.buttons["写真を選ぶ"]
@@ -202,7 +210,7 @@ final class ExternalInputFlowTests: XCTestCase {
             let window = surface.windows.firstMatch
             guard window.exists else { continue }
             let viewport = window.frame
-            for query in [surface.collectionViews.cells, surface.collectionViews.images, surface.collectionViews.buttons] {
+            for query in [surface.collectionViews.cells, surface.collectionViews.images] {
                 // Bind the actual accessibility element: picker contents can
                 // change while loading, invalidating a query's numerical index.
                 let images = query.allElementsBoundByAccessibilityElement.filter {

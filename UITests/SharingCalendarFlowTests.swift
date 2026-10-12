@@ -86,6 +86,7 @@ final class SharingCalendarFlowTests: XCTestCase {
         save(app, title: "Large calendar note")
         let detail = app.buttons["detailButton"].firstMatch; reveal(detail, app: app); detail.tap()
         let share = app.buttons["shareItemButton"]; reveal(share, app: app); share.tap()
+        reveal(app.staticTexts["sharePreview"], app: app)
         XCTAssertTrue(app.staticTexts["sharePreview"].waitForExistence(timeout: 5))
         try audit(app, name: "Share-Dark-LargestText")
         reveal(app.buttons["shareFileButton"], app: app)

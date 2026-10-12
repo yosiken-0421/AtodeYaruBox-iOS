@@ -206,6 +206,7 @@
 				"D23C887D6DCECC54AA35CF0A",
 				"220BBA3AF705708BCD46E195",
 				"21D9203CA3B4AF10F5B95E78",
+				"64C45AD56CD321A7CA285028",
 				"3CA97BD797C8653784052808",
 				"B2BA7A63971E6DB6558715CD",
 				"BAFC27CD8E34AC6F7E5925DE",
@@ -254,6 +255,7 @@
 				"522DD262F8D0A8C742FD5932",
 				"AE3EA66E2DF8E75FC1C463E1",
 				"2D16DE206DABF76BDEA92007",
+				"B23AD71ABC9BDC2D58739547",
 				"A5F6A4F81878E4D44DA46AFE",
 				"39CB7CEFBC90AAB615F42C40",
 				"873CDC41B503A48906BD0DA9",
@@ -1034,6 +1036,12 @@
 			"path" = "ShareExtension/ShareViewController.swift";
 			"sourceTree" = "<group>";
 		};
+		"64C45AD56CD321A7CA285028" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AtodeYaruBox/Views/Components/CalendarDayButton.swift";
+			"sourceTree" = "<group>";
+		};
 		"659E77705D07FF9A28319BE7" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "872AE9326FDF44232B89D776";
@@ -1642,6 +1650,10 @@
 			"includeInIndex" = 0;
 			"path" = "AtodeYaruBox.app";
 			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"B23AD71ABC9BDC2D58739547" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "64C45AD56CD321A7CA285028";
 		};
 		"B2BA7A63971E6DB6558715CD" = {
 			"isa" = "PBXFileReference";
