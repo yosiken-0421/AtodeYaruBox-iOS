@@ -7,7 +7,6 @@ from pathlib import Path
 import platform
 import re
 import subprocess
-import time
 
 
 class NativeQAFixtures:
@@ -100,14 +99,8 @@ class NativeQAFixtures:
             # on a cold hosted guest before the actual image import starts.
             stage = "import_synthetic_image"
             self.import_synthetic_photo(image)
-            stage = "warm_synthetic_library"
-            # Prime the library only after this guest has a synthetic asset.
-            # No user library, other Simulator, or physical device is touched.
-            subprocess.run(["xcrun", "simctl", "launch", self.udid, "com.apple.mobileslideshow"],
-                           cwd=self.root, check=True, timeout=30)
-            time.sleep(3)
-            subprocess.run(["xcrun", "simctl", "terminate", self.udid, "com.apple.mobileslideshow"],
-                           cwd=self.root, check=True, timeout=20)
+            # XCTest owns the stock Photos UI and completes its observed welcome
+            # screen. Launching it from simctl can stall before automation starts.
             stage = "start_loopback_fixture"
             module_path = self.root / "tools/loopback_fixture.py"
             spec = importlib.util.spec_from_file_location("atode_loopback_fixture", module_path)
