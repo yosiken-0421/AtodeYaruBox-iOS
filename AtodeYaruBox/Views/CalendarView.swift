@@ -101,11 +101,11 @@ struct CalendarView: View {
         }
     }
     @ViewBuilder private var monthButtons: some View {
-        BoxActionButton(title: "前の月", symbol: "chevron.left", identifier: "calendarPreviousMonth") { changeMonth(-1) }
+        BoxActionButton(title: "前月", symbol: "chevron.left", identifier: "calendarPreviousMonth", hint: "前の月を表示します") { changeMonth(-1) }
         BoxActionButton(title: "今日", symbol: "calendar", identifier: "calendarTodayButton") {
             month = Date(); selectedDay = calendar.startOfDay(for: Date())
         }
-        BoxActionButton(title: "次の月", symbol: "chevron.right", identifier: "calendarNextMonth") { changeMonth(1) }
+        BoxActionButton(title: "翌月", symbol: "chevron.right", identifier: "calendarNextMonth", hint: "次の月を表示します") { changeMonth(1) }
     }
     private func changeMonth(_ amount: Int) {
         guard let date = calendar.date(byAdding: .month, value: amount, to: CalendarMonth(containing: month).start) else { return }
