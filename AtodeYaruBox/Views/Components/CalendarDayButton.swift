@@ -81,5 +81,9 @@ struct CalendarDayButton: UIViewRepresentable {
             stack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -4)
         ])
     }
+    override func accessibilityActivate() -> Bool {
+        sendActions(for: .touchUpInside)
+        return true
+    }
     required init?(coder: NSCoder) { return nil }
 }
