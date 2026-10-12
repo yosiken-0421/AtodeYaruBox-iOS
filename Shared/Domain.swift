@@ -86,6 +86,7 @@ enum AppError: LocalizedError {
     case emptyTitle, invalidURL, invalidFile, fileTooLarge, missingAppGroup, invalidSnoozeDate
     case notificationDenied, locationDenied, locationUnavailable, invalidLocation
     case staleItem
+    case sharedFileTooLarge
     var errorDescription: String? {
         switch self {
         case .emptyTitle: return "タイトルを入力してください。"
@@ -99,6 +100,7 @@ enum AppError: LocalizedError {
         case .locationUnavailable: return "この端末では場所の通知を利用できません。"
         case .invalidLocation: return "選んだ場所を使えませんでした。別の場所を選び直してください。"
         case .staleItem: return "この項目は見つかりません。箱を開き直してください。"
+        case .sharedFileTooLarge: return "箱の項目を共有するファイルは64KB以下にしてください。"
         }
     }
 }

@@ -1,9 +1,13 @@
 {
   "name": "iOS build and complete XCTest acceptance",
-  "on": [
-    "push",
-    "workflow_dispatch"
-  ],
+  "on": {
+    "push": {
+      "branches": [
+        "codex/sharing-calendar"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
   "permissions": {
     "contents": "read"
   },
@@ -37,9 +41,9 @@
           "run": "python3 tools/verify_release_result.py"
         },
         {
-          "name": "Require all 86 tests once, no failures or skips, no compiler warnings",
+          "name": "Require all 106 tests once, no failures or skips, no compiler warnings",
           "if": "always()",
-          "run": "python3 tools/verify_native_result.py --expected-unit 76 --expected-ui 10 --require-no-compiler-warnings"
+          "run": "python3 tools/verify_native_result.py --expected-unit 93 --expected-ui 13 --require-no-compiler-warnings"
         },
         {
           "name": "Verify Japanese bundles and extracted App Intent metadata",

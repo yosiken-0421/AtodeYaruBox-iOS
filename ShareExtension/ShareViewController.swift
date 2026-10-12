@@ -47,6 +47,9 @@ private struct ShareSaveView: View {
                         Picker("種類", selection: $drafts[index].action) {
                             ForEach(ActionType.allCases) { action in Text(action.label).tag(action) }
                         }
+                        if let date = drafts[index].sharedDueDate {
+                            LabeledContent("受け取った日時") { Text(date, format: .dateTime.year().month().day().hour().minute()) }
+                        }
                     }
                 }
                 if let errorMessage { Section { Label(errorMessage, systemImage: "exclamationmark.triangle").accessibilityIdentifier("shareImportError") } }
@@ -54,7 +57,7 @@ private struct ShareSaveView: View {
                     Button(action: saveDrafts) {
                         Label("箱に保存", systemImage: "tray.and.arrow.down").frame(maxWidth: .infinity, minHeight: 44)
                     }.buttonStyle(.borderedProminent).tint(.boxButton).disabled(cannotSave)
-                    Text("共有した項目は「確認待ち」に入ります。日時の設定は、箱で内容を確認してから行えます。")
+                    Text("共有した項目は「確認待ち」に入ります。箱から受け取ったファイルの日時は引き継ぎます。完了や変更は相手と同期されません。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }

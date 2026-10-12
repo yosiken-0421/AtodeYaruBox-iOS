@@ -22,6 +22,7 @@ final class ComposeViewModel {
     var errorMessage: String?
     var importMessage: String?
     var confidence: Double = 1
+    private var isSharedTask = false
     private var saved = false
     private var automaticTitle: String?
     private var automaticURL: String?
@@ -34,8 +35,25 @@ final class ComposeViewModel {
 
     var canSave: Bool { !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isProcessing && !isSaving }
 
+    func applySharedTask(_ document: SharedTaskDocument) {
+        do { try SharedTaskCodec.validate(document) }
+        catch { errorMessage = error.localizedDescription; return }
+        discardUnsavedAsset(); resetAutomaticAnalysis()
+        title = document.title; note = document.note; action = document.action
+        urlText = document.sourceURL ?? ""; source = .file; confidence = 1
+        hasDate = document.dueDate != nil
+        if let date = document.dueDate { dueDate = date }
+        isSharedTask = true
+        importMessage = "受け取った項目のコピーです。内容を確認して保存してください。完了や変更は相手と同期されません。"
+    }
+
     func importData(_ data: Data, type: UTType, source: SourceType) async {
         guard !isProcessing else { return }
+        if type.conforms(to: .atodeTask) {
+            do { applySharedTask(try SharedTaskCodec.decode(data)) }
+            catch { errorMessage = error.localizedDescription }
+            return
+        }
         isProcessing = true
         defer { isProcessing = false }
         do {
@@ -44,6 +62,7 @@ final class ComposeViewModel {
             if let asset { AssetStore.remove(asset) }
             asset = newAsset
             self.source = source
+            isSharedTask = false
             resetAutomaticAnalysis()
             do {
                 if type.conforms(to: .image) { rawOCRText = try await OCRService.recognize(data: data) }
@@ -124,6 +143,7 @@ final class ComposeViewModel {
             if !url.isEmpty && URLValidator.webURL(url) == nil { throw AppError.invalidURL }
             let item = InboxItem(title: title, note: note, sourceType: url.isEmpty ? source : (asset == nil ? .url : source),
                                  actionType: action, dueDate: hasDate ? dueDate : nil)
+            if isSharedTask { item.sourceType = .file }
             item.sourceURL = url.isEmpty ? nil : url
             item.localAssetPath = asset?.path
             item.thumbnailPath = asset?.thumbnailPath

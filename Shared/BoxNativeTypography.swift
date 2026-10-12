@@ -16,7 +16,7 @@ final class BoxNativeActionButton: UIButton {
         }
     }
 
-    required init?(coder: NSCoder) { fatalError("Created programmatically") }
+    required init?(coder: NSCoder) { return nil }
 
     override func updateConfiguration() {
         super.updateConfiguration()
@@ -51,7 +51,7 @@ final class BoxNativeStatusLabel: UILabel {
         }
     }
 
-    required init?(coder: NSCoder) { fatalError("Created programmatically") }
+    required init?(coder: NSCoder) { return nil }
 
     func updateFont() {
         let preferred = UIFont.preferredFont(forTextStyle: textStyle, compatibleWith: traitCollection)

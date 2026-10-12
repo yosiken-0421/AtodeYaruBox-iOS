@@ -13,11 +13,24 @@ struct ShareDraft: Identifiable {
     var fields = ExtractedFields()
     var action: ActionType = .memo
     var confidence = 0.25
+    var sharedDueDate: Date?
 }
 
 @MainActor
 enum ShareImportService {
     static func read(_ provider: NSItemProvider) async throws -> ShareDraft {
+        if provider.hasItemConformingToTypeIdentifier(UTType.atodeTask.identifier) {
+            let bytes: Data = try await withCheckedThrowingContinuation { continuation in
+                provider.loadFileRepresentation(forTypeIdentifier: UTType.atodeTask.identifier) { url, error in
+                    if let error { continuation.resume(throwing: error) }
+                    else if let url {
+                        do { continuation.resume(returning: try BoundedFileReader.read(url, maximumBytes: SharedTaskCodec.maximumBytes)) }
+                        catch { continuation.resume(throwing: error) }
+                    } else { continuation.resume(throwing: AppError.invalidFile) }
+                }
+            }
+            return try sharedDraft(bytes)
+        }
         if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
             let url = try await readURL(provider)
             if url.isFileURL {
@@ -112,6 +125,7 @@ enum ShareImportService {
         return try BoundedFileReader.read(url, maximumBytes: AssetStore.maximumBytes)
     }
     private static func fileDraft(bytes: Data, type: UTType, title: String) async throws -> ShareDraft {
+        if type.conforms(to: .atodeTask) { return try sharedDraft(bytes) }
         let asset = try AssetStore.save(bytes, type: type, requireGroup: true)
         var draft = ShareDraft(title: title, source: type.conforms(to: .image) ? .photo : (type.conforms(to: .pdf) ? .pdf : .file), asset: asset)
         if type.conforms(to: .image) { draft.rawText = (try? await OCRService.recognize(data: bytes)) ?? "" }
@@ -136,7 +150,15 @@ enum ShareImportService {
         item.extractedPhone = draft.fields.phone; item.extractedEmail = draft.fields.email
         item.extractedOrderNumber = draft.fields.orderNumber; item.extractedReservationNumber = draft.fields.reservationNumber
         item.extractedReturnDeadline = draft.fields.returnDeadline
+        item.dueDate = draft.sharedDueDate
         // Shared date candidates are reviewed in the host app, not silently scheduled by the extension.
         return item
+    }
+    static func sharedDraft(_ bytes: Data) throws -> ShareDraft {
+        let document = try SharedTaskCodec.decode(bytes)
+        var draft = ShareDraft(title: document.title, note: document.note, source: .file,
+                               url: document.sourceURL, action: document.action, confidence: 1)
+        draft.sharedDueDate = document.dueDate
+        return draft
     }
 }

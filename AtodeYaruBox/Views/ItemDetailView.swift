@@ -10,11 +10,13 @@ struct ItemDetailView: View {
     @State private var showingLocation = false
     @State private var addingCalendar = false
     @State private var copied = false
+    @State private var showingShare = false
     var body: some View {
         List {
             Section {
                 Text(item.title).font(.title2.bold()).fixedSize(horizontal: false, vertical: true)
                 BoxActionButton(title: "編集", symbol: "pencil", identifier: "editItemButton") { showingEdit = true }
+                BoxActionButton(title: "誰かと共有", symbol: "square.and.arrow.up", identifier: "shareItemButton") { showingShare = true }
                 Label(item.actionType.label, systemImage: item.actionType.symbol)
                 if let date = item.dueDate { LabeledContent("日時") { Text(date, format: .dateTime.year().month().day().hour().minute()) } }
                 if item.status == .inbox {
@@ -112,6 +114,7 @@ struct ItemDetailView: View {
         .sheet(isPresented: $showingSnooze) { SnoozeSheet(item: item) }
         .sheet(isPresented: $showingEdit) { NavigationStack { EditItemView(item: item) } }
         .sheet(isPresented: $showingLocation) { NavigationStack { LocationReminderView(item: item) } }
+        .sheet(isPresented: $showingShare) { NavigationStack { ShareTaskView(item: item) } }
     }
     private var hasExtractedFields: Bool {
         [item.extractedProductName, item.extractedPrice, item.extractedPlace, item.extractedAddress,

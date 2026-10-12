@@ -5,6 +5,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasFinishedOnboarding") private var hasFinishedOnboarding = false
     @State private var notificationItem: InboxItem?
+    @State private var incomingTask: SharedTaskDocument?
     @FocusState private var searchIsFocused: Bool
 
     var body: some View {
@@ -22,6 +23,7 @@ struct RootView: View {
         .tint(.boxAccent)
         .sheet(isPresented: $session.showingComposer) { NavigationStack { ComposeView() } }
         .sheet(item: $notificationItem) { item in NavigationStack { ItemDetailView(item: item) } }
+        .sheet(item: $incomingTask) { document in NavigationStack { ComposeView(sharedTask: document) } }
         .fullScreenCover(isPresented: Binding(get: { !hasFinishedOnboarding }, set: { hasFinishedOnboarding = !$0 })) {
             OnboardingView { hasFinishedOnboarding = true }
         }
@@ -49,6 +51,13 @@ struct RootView: View {
             session.requestedItemID = nil
         }
         .onOpenURL { url in
+            if url.isFileURL, url.pathExtension.lowercased() == "atodebox" {
+                let accessing = url.startAccessingSecurityScopedResource()
+                defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+                do { incomingTask = try SharedTaskCodec.decode(BoundedFileReader.read(url, maximumBytes: SharedTaskCodec.maximumBytes)) }
+                catch { session.errorMessage = error.localizedDescription }
+                return
+            }
             guard url.scheme == "atodeyarubox" else { return }
             switch url.host {
             case "today": session.selectedTab = 1

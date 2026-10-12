@@ -3,6 +3,7 @@ import PhotosUI
 import UniformTypeIdentifiers
 import AVFoundation
 
+@MainActor
 struct ComposeView: View {
     @Environment(AppSession.self) private var session
     @Environment(\.dismiss) private var dismiss
@@ -12,6 +13,13 @@ struct ComposeView: View {
     @State private var showingCamera = false
     @State private var photoLoading = false
     @State private var photoTask: Task<Void, Never>?
+
+    init(initialDueDate: Date? = nil, sharedTask: SharedTaskDocument? = nil) {
+        let model = ComposeViewModel()
+        if let date = initialDueDate { model.hasDate = true; model.dueDate = date }
+        if let sharedTask { model.applySharedTask(sharedTask) }
+        _model = State(initialValue: model)
+    }
 
     var body: some View {
         @Bindable var model = model

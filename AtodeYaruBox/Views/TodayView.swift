@@ -5,6 +5,7 @@ struct TodayView: View {
     @Environment(AppSession.self) private var session
     private var items: [InboxItem] { session.items.sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) } }
     @State private var snoozing: InboxItem?
+    @State private var showingCalendar = false
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { timeline in
@@ -15,6 +16,9 @@ struct TodayView: View {
                 return due >= timeline.date && Calendar.current.isDate(due, inSameDayAs: timeline.date)
             }
             List {
+                Section {
+                    BoxActionButton(title: "カレンダーで見る", symbol: "calendar", identifier: "openCalendarButton") { showingCalendar = true }
+                }
                 if typeSize.isAccessibilitySize && overdue.isEmpty && today.isEmpty { addButton }
                 if overdue.isEmpty && today.isEmpty {
                     EmptyBoxState(title: "今日はすっきり", symbol: "sun.max",
@@ -46,6 +50,7 @@ struct TodayView: View {
             }
         }
         .sheet(item: $snoozing) { item in SnoozeSheet(item: item) }
+        .navigationDestination(isPresented: $showingCalendar) { CalendarView() }
     }
     private var addButton: some View {
         BoxActionButton(title: "追加", symbol: "plus", identifier: "todayAddButton") {

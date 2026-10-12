@@ -42,14 +42,14 @@ class NativeCIRunnerTests(unittest.TestCase):
             self.assertEqual(run_native_ci.main(simulator_signing=True), 1)
         build.assert_called_once_with("all", simulator_signing=True, external_input_qa=False)
 
-    def testExternalInputQAFlagAnd86CaseAcceptanceReachNativeRunner(self):
+    def testExternalInputQAFlagAnd106CaseAcceptanceReachNativeRunner(self):
         with patch.object(run_native_ci, "ROOT", self.root), \
              patch.object(run_native_ci, "build", return_value=0) as build, \
              patch.object(run_native_ci, "inspect", return_value={"status": "PASS", "cases": {}}) as inspect, \
              patch.object(run_native_ci, "junit"):
             self.assertEqual(run_native_ci.main(simulator_signing=True, external_input_qa=True), 0)
         build.assert_called_once_with("all", simulator_signing=True, external_input_qa=True)
-        inspect.assert_called_once_with(self.root, 76, 10)
+        inspect.assert_called_once_with(self.root, 93, 13)
 
 
 if __name__ == "__main__":
