@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct CalendarView: View {
     @Environment(AppSession.self) private var session
@@ -25,10 +26,13 @@ struct CalendarView: View {
             List {
                 Section {
                     monthControls
-                    if typeSize.isAccessibilitySize {
-                        BoxActionButton(title: "日付を選ぶ：" + selectedDay.formatted(.dateTime.month().day()),
-                                        symbol: "calendar", identifier: "calendarChooseDayButton") { choosingDay = true }
-                    } else {
+                    BoxActionButton(title: "日付を選ぶ：" + selectedDay.formatted(.dateTime.month().day()),
+                                    symbol: "calendar", identifier: "calendarChooseDayButton") { choosingDay = true }
+                    // Keep the same scalable date controls when the system changes
+                    // text size. The ordinary list button is available at every size.
+                    let font = UIFont.preferredFont(forTextStyle: .body,
+                        compatibleWith: UITraitCollection(preferredContentSizeCategory: BoxTypography.category(typeSize)))
+                    let dayWidth = max(44, font.pointSize * 2.5)
                         ScrollView(.horizontal) {
                             VStack(spacing: 8) {
                                 HStack(spacing: 2) {
@@ -38,7 +42,7 @@ struct CalendarView: View {
                                             .frame(maxWidth: .infinity).accessibilityHidden(true)
                                     }
                                 }
-                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 44), spacing: 2), count: 7), spacing: 4) {
+                                LazyVGrid(columns: Array(repeating: GridItem(.fixed(dayWidth), spacing: 2), count: 7), spacing: 4) {
                                     ForEach(0..<model.leadingEmptyDays, id: \.self) { _ in Color.clear.frame(height: 1).accessibilityHidden(true) }
                                     ForEach(model.days) { day in
                                         CalendarDayButton(number: day.number, count: counts[day.date] ?? 0,
@@ -49,9 +53,8 @@ struct CalendarView: View {
                                         }
                                     }
                                 }
-                            }.frame(minWidth: 320)
+                            }.frame(minWidth: dayWidth * 7 + 12)
                         }.scrollIndicators(.hidden)
-                    }
                     Text("数字の下は項目の件数です。日付を押すと、その日の内容を確認できます。")
                         .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     BoxActionButton(title: "完了した項目：" + (includeCompleted ? "表示する" : "表示しない"),

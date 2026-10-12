@@ -20,7 +20,9 @@ final class SharingCalendarFlowTests: XCTestCase {
         let sizing: XCUIAccessibilityAuditType = [.dynamicType, .textClipped]
         for types in [XCUIAccessibilityAuditType.all.subtracting(sizing), sizing] {
             try app.performAccessibilityAudit(for: types) { issue in
-                XCTFail("Audit [\(name)] type=\(issue.auditType.rawValue) | \(issue.detailedDescription) | identifier=\(issue.element?.identifier ?? "") label=\(issue.element?.label ?? "") frame=\(String(describing: issue.element?.frame))")
+                // Returning false lets XCTest report the failure and export its
+                // element image after restoring the temporary system font size.
+                print("Audit [\(name)] type=\(issue.auditType.rawValue) | \(issue.detailedDescription) | identifier=\(issue.element?.identifier ?? "") label=\(issue.element?.label ?? "") frame=\(String(describing: issue.element?.frame))")
                 return false
             }
         }

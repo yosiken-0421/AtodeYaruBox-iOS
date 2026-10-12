@@ -21,6 +21,9 @@ struct ShareTaskView: View {
     var body: some View {
         Form {
             Section {
+                BoxActionButton(title: "閉じる", symbol: "xmark.circle", identifier: "shareCloseButton") { dismiss() }
+            }
+            Section {
                 if item.dueDate != nil { choice("日時", value: $includeDate, identifier: "shareDateToggle") }
                 if !item.note.isEmpty { choice("メモ", value: $includeNote, identifier: "shareNoteToggle") }
                 if item.sourceURL.flatMap(URLValidator.webURL) != nil { choice("WebページのURL", value: $includeURL, identifier: "shareURLToggle") }
@@ -50,7 +53,6 @@ struct ShareTaskView: View {
             }
         }
         .navigationTitle("項目を共有").navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { dismiss() } } }
         .sheet(item: $activity) { payload in ShareActivitySheet(payload: payload) }
         .alert("共有できませんでした", isPresented: Binding(get: { sharingError != nil }, set: { if !$0 { sharingError = nil } })) {
             Button("閉じる", role: .cancel) { sharingError = nil }

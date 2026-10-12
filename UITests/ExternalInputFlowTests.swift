@@ -1,4 +1,5 @@
 import XCTest
+import Vision
 
 final class ExternalInputFlowTests: XCTestCase {
     override func setUpWithError() throws {
@@ -52,6 +53,10 @@ final class ExternalInputFlowTests: XCTestCase {
         let continueButton = library.buttons.matching(NSPredicate(format: "label IN %@", ["Continue", "続ける", "Get Started", "使い始める"])).firstMatch
         if continueButton.waitForExistence(timeout: 3), continueButton.isHittable { continueButton.tap() }
         _ = library.collectionViews.cells.firstMatch.waitForExistence(timeout: 10)
+        // On a cold iOS 18 guest, Photos' welcome sheet is drawn but omitted
+        // from its AX button query. Read only this synthetic guest's screen and
+        // tap the observed Continue label; no account or permission is accepted.
+        try finishSyntheticPhotosWelcome(library)
         attachment(library, name: "SyntheticPhotosLibraryBeforePicker")
         let app = host()
         app.buttons["addButton"].tap()
@@ -102,6 +107,25 @@ final class ExternalInputFlowTests: XCTestCase {
         XCTAssertEqual(edit.label, "編集")
         XCTAssertGreaterThanOrEqual(edit.frame.height, 44)
         attachment(app, name: "PhotoOCRSavedAndSearchable")
+    }
+
+    @MainActor private func finishSyntheticPhotosWelcome(_ library: XCUIApplication) throws {
+        for _ in 0..<2 {
+            guard let image = library.screenshot().image.cgImage else { return }
+            let request = VNRecognizeTextRequest()
+            request.recognitionLanguages = ["en-US"]
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = false
+            try VNImageRequestHandler(cgImage: image).perform([request])
+            let observations = request.results ?? []
+            let text = observations.compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+                .lowercased().replacingOccurrences(of: "’", with: "'")
+            guard text.contains("photos"), text.contains("what's new") || text.contains("welcome"),
+                  let button = observations.first(where: { $0.topCandidates(1).first?.string.lowercased() == "continue" }) else { return }
+            let box = button.boundingBox
+            library.coordinate(withNormalizedOffset: CGVector(dx: box.midX, dy: 1 - box.midY)).tap()
+            _ = library.collectionViews.cells.firstMatch.waitForExistence(timeout: 5)
+        }
     }
 
     @MainActor private func safariPage() throws -> XCUIApplication {
