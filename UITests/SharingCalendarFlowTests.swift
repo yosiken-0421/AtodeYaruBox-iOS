@@ -19,6 +19,13 @@ final class SharingCalendarFlowTests: XCTestCase {
         let picture = XCTAttachment(screenshot: app.screenshot()); picture.name = name; picture.lifetime = .keepAlways; add(picture)
         let sizing: XCUIAccessibilityAuditType = [.dynamicType, .textClipped]
         for types in [XCUIAccessibilityAuditType.all.subtracting(sizing), sizing] { try app.performAccessibilityAudit(for: types) }
+        var previous: [CGRect] = []; var stable = 0
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let frames = [app.navigationBars.firstMatch.frame, app.tabBars.firstMatch.frame]
+            stable = frames == previous ? stable + 1 : 0; previous = frames
+            return stable >= 2
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed)
     }
     @MainActor private func save(_ app: XCUIApplication, title: String, note: String = "") {
         let field = app.descendants(matching: .any).matching(identifier: "titleField").firstMatch

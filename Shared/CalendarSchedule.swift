@@ -19,12 +19,13 @@ struct CalendarMonth {
     let weekdayLabels: [String]
 
     init(containing date: Date, calendar: Calendar = .current) {
-        start = calendar.dateInterval(of: .month, for: date)?.start ?? calendar.startOfDay(for: date)
-        let range = calendar.range(of: .day, in: .month, for: start) ?? 1..<2
+        let monthStart = calendar.dateInterval(of: .month, for: date)?.start ?? calendar.startOfDay(for: date)
+        start = monthStart
+        let range = calendar.range(of: .day, in: .month, for: monthStart) ?? 1..<2
         days = range.compactMap { number in
-            calendar.date(byAdding: .day, value: number - 1, to: start).map { CalendarDay(date: $0, number: number) }
+            calendar.date(byAdding: .day, value: number - 1, to: monthStart).map { CalendarDay(date: $0, number: number) }
         }
-        leadingEmptyDays = (calendar.component(.weekday, from: start) - calendar.firstWeekday + 7) % 7
+        leadingEmptyDays = (calendar.component(.weekday, from: monthStart) - calendar.firstWeekday + 7) % 7
         let symbols = calendar.shortStandaloneWeekdaySymbols
         weekdayLabels = (0..<7).map { symbols[(calendar.firstWeekday - 1 + $0) % 7] }
     }
