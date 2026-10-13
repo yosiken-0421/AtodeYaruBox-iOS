@@ -375,7 +375,7 @@ def publishing_flags(raw):
             'apple_validation_codes': sorted(set(re.findall(r'\bITMS-[0-9]{4,6}\b', text)))[:8],
             'numeric_error_codes': sorted(set(re.findall(r'\b(?:Error|ERROR)\s*(?:code)?\s*[:=( ]\s*(-?[0-9]{3,6})\b', text)))[:8],
             'fixed_terms': sorted(set(re.findall(r'[a-z_]+',text.lower())) & vocabulary)[:60],
-            'fixed_error_lines':lines[-6:]}
+            'fixed_error_lines':lines[:6]}
 
 
 def inspect(token, opener=None, storage=None):
@@ -457,7 +457,7 @@ def inspect(token, opener=None, storage=None):
             flags += log_flags
             for field in ('diagnostics', 'apple_validation_codes', 'numeric_error_codes', 'fixed_terms'):
                 entry[field] = sorted(set(value for flag in flags for value in flag[field]))[:(60 if field=='fixed_terms' else 8)]
-            entry['fixed_error_lines']=[line for flag in log_flags for line in flag['fixed_error_lines']][-6:]
+            entry['fixed_error_lines']=[line for flag in log_flags for line in flag['fixed_error_lines']][:6]
             publishing.append(entry)
         return {**result, 'status': 'KNOWN_SIGNED_STEP_READ', **classified, 'publishing': publishing[:3]}
     except urllib.error.HTTPError as error:
