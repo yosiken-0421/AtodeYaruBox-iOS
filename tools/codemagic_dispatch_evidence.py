@@ -7,8 +7,8 @@ import urllib.error
 import urllib.request
 from tools.codemagic_read_access import APP_ID, NoRedirect, write_report
 
-BRANCH = 'codex/owner-update-177fc86'
-COMMIT = 'e31efe0dfd731ba2cbfa6b0ac46e7db47697b948'
+BRANCH = 'codex/owner-update-receipt-0278e3b'
+COMMIT = 'c0346f697b7b63dcf433c578ac67669b71434574'
 URL = 'https://api.codemagic.io/apps/' + APP_ID + '/webhooks'
 REPORT = Path('artifacts/codemagic-dispatch-evidence.json')
 FIELDS = {'webhooks', 'results', 'result', 'request', 'response', 'task', 'payload', 'body', 'data', 'message',
