@@ -365,11 +365,17 @@ def publishing_flags(raw):
         'CONTRACT_REQUIRED': r'contract.*(?:missing|required|expired)|agreement.*(?:accept|pending)',
         'IPA_ARTIFACT_MISSING': r'(?:ipa|artifact).*(?:not found|missing|none|no such)|no.*(?:ipa|artifact)',
     }
-    vocabulary=set('no not found find missing failed failure unable can cannot could invalid error errors exception upload uploaded uploading publish publishing artifact artifacts file files ipa application bundle identifier permission permissions access denied authorization unauthorized authentication token api key credentials integration account app store connect expired certificate profile version build duplicate validation validate sdk minimum supported connection timeout response server retry try again undefined null name required environment variable variables available'.split())
+    vocabulary=set('no not found find missing failed failure unable can cannot could invalid error errors exception upload uploaded uploading publish publishing artifact artifacts file files ipa application bundle identifier permission permissions access denied authorization unauthorized authentication token api key credentials integration account app store connect expired certificate profile version build duplicate validation validate sdk minimum supported connection timeout response server retry try again undefined null name required environment variable variables available request status code with using has been does support invalid contains image images icon icons alpha transparency missing executable architecture architectures distribution development xcode from when while must is are on in a an the and to for of be only your this that http internal external testing unexpected returned conflict resources updates notallowed relation'.split())
+    lines=[]
+    for line in text.replace('\\n','\n').splitlines():
+        if re.search(r'error|failed|exception|unsupported|invalid|not found',line,re.I):
+            words=[word for word in re.findall(r'[a-z]+',line.lower()) if word in vocabulary]
+            if words:lines.append(' '.join(words)[:240])
     return {'diagnostics': [code for code, pattern in patterns.items() if re.search(pattern, text, re.I)],
             'apple_validation_codes': sorted(set(re.findall(r'\bITMS-[0-9]{4,6}\b', text)))[:8],
             'numeric_error_codes': sorted(set(re.findall(r'\b(?:Error|ERROR)\s*(?:code)?\s*[:=( ]\s*(-?[0-9]{3,6})\b', text)))[:8],
-            'fixed_terms': sorted(set(re.findall(r'[a-z_]+',text.lower())) & vocabulary)[:60]}
+            'fixed_terms': sorted(set(re.findall(r'[a-z_]+',text.lower())) & vocabulary)[:60],
+            'fixed_error_lines':lines[-6:]}
 
 
 def inspect(token, opener=None, storage=None):
@@ -451,6 +457,7 @@ def inspect(token, opener=None, storage=None):
             flags += log_flags
             for field in ('diagnostics', 'apple_validation_codes', 'numeric_error_codes', 'fixed_terms'):
                 entry[field] = sorted(set(value for flag in flags for value in flag[field]))[:(60 if field=='fixed_terms' else 8)]
+            entry['fixed_error_lines']=[line for flag in log_flags for line in flag['fixed_error_lines']][-6:]
             publishing.append(entry)
         return {**result, 'status': 'KNOWN_SIGNED_STEP_READ', **classified, 'publishing': publishing[:3]}
     except urllib.error.HTTPError as error:
