@@ -209,10 +209,32 @@ final class ExternalInputFlowTests: XCTestCase {
     @MainActor private func openShare(_ safari: XCUIApplication) {
         var menuLabel = "direct share"
         if shareCandidate(safari) == nil {
-            let menu = safari.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@ OR label BEGINSWITH %@ OR label BEGINSWITH[c] %@ OR label BEGINSWITH %@", "More", "その他", "Page Menu", "ページメニュー")).firstMatch
-            XCTAssertTrue(menu.waitForExistence(timeout: 5), "SAFARI_PAGE_MENU_NOT_FOUND; " + controls(safari))
+            let menus = safari.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@ OR label BEGINSWITH %@ OR label BEGINSWITH[c] %@ OR label BEGINSWITH %@", "More", "その他", "Page Menu", "ページメニュー"))
+            var currentMenu: XCUIElement?
+            var previousFrame: CGRect?
+            var stable = 0
+            let menuReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let window = safari.windows.firstMatch.frame
+                guard let candidate = menus.allElementsBoundByIndex.first(where: {
+                    $0.exists && $0.isHittable && window.contains($0.frame)
+                        && $0.frame.width > 0 && $0.frame.height > 0
+                }) else { stable = 0; return false }
+                let frame = candidate.frame
+                stable = frame == previousFrame ? stable + 1 : 0
+                previousFrame = frame; currentMenu = candidate
+                return stable >= 2
+            }, object: safari)
+            let menuResult = XCTWaiter.wait(for: [menuReady], timeout: 10)
+            attachment(safari, name: "ActualSafariToolbarBeforeMenu")
+            XCTAssertEqual(menuResult, .completed, "SAFARI_PAGE_MENU_NOT_READY; " + controls(safari))
+            guard menuResult == .completed, let menu = currentMenu else { return }
             menuLabel = String(menu.label.prefix(120))
-            menu.tap()
+            // iOS 26 exposed a cached menu with an invalid {-1,-1} XCTest hit
+            // point. Tap the center of its current, visible, settled frame once.
+            let frame = menu.frame
+            safari.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+            attachment(safari, name: "ActualSafariMenuAfterTap")
         }
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.shareCandidate(safari) != nil }, object: safari)
         XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 8), .completed,
