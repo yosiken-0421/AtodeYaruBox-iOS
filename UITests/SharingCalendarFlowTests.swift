@@ -13,13 +13,17 @@ final class SharingCalendarFlowTests: XCTestCase {
     @MainActor private func reveal(_ element: XCUIElement, app: XCUIApplication) {
         for _ in 0..<12 { if fullyVisible(element, app: app) { return }; app.swipeUp() }
         for _ in 0..<12 { if fullyVisible(element, app: app) { return }; app.swipeDown() }
+        let picture = XCTAttachment(screenshot: app.screenshot()); picture.name = "Unreachable-" + element.identifier; picture.lifetime = .keepAlways; add(picture)
+        print("Reveal failed: identifier=\(element.identifier) frame=\(element.frame) window=\(app.windows.firstMatch.frame) navigation=\(app.navigationBars.allElementsBoundByIndex.map { $0.frame }) tabs=\(app.tabBars.allElementsBoundByIndex.map { $0.frame })")
         XCTAssertTrue(fullyVisible(element, app: app), "The control must be visible inside the navigation and tab bars")
     }
     @MainActor private func fullyVisible(_ element: XCUIElement, app: XCUIApplication) -> Bool {
         guard element.exists && element.isHittable else { return false }
         let window = app.windows.firstMatch.frame
-        let top = app.navigationBars.allElementsBoundByIndex.filter { $0.exists && $0.isHittable }.map { $0.frame.maxY }.max() ?? window.minY
-        let bottom = app.tabBars.allElementsBoundByIndex.filter { $0.exists && $0.isHittable }.map { $0.frame.minY }.min() ?? window.maxY
+        let top = app.navigationBars.allElementsBoundByIndex.filter { $0.exists && $0.frame.intersects(window) }.map { $0.frame.maxY }.max() ?? window.minY
+        let bottom = app.tabBars.allElementsBoundByIndex.filter { bar in
+            bar.exists && bar.buttons.allElementsBoundByIndex.contains { $0.exists && $0.isHittable }
+        }.map { $0.frame.minY }.min() ?? window.maxY
         let viewport = CGRect(x: window.minX, y: top + 4, width: window.width, height: max(0, bottom - top - 8))
         let frame = element.frame
         return viewport.contains(CGPoint(x: frame.midX, y: frame.midY))

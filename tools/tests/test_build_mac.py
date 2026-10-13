@@ -54,6 +54,32 @@ class BuildResultTests(unittest.TestCase):
         self.assertEqual((self.result()["build"], self.result()["tests"]), ("NOT_RUN", "NOT_RUN"))
         self.assertIsNotNone(self.result()["finished_at"])
 
+    def testWindowsBriefLockStillReplacesStalePassWithoutExecutingBuild(self):
+        (self.artifacts / "ios-build-result.json").write_text('{"build":"PASS","tests":"PASS"}')
+        original = Path.replace
+        attempts = []
+        def locked_then_available(path, target):
+            attempts.append(path)
+            if len(attempts) < 3:
+                raise PermissionError("Synthetic transient file lock")
+            return original(path, target)
+        with patch.object(build_mac.sys, "platform", "win32"), \
+             patch.object(Path, "replace", autospec=True, side_effect=locked_then_available), \
+             patch.object(build_mac.time, "sleep"), patch.object(build_mac, "execute") as execute:
+            build_mac.write_result({"build": "NOT_RUN", "tests": "NOT_RUN"})
+        execute.assert_not_called()
+        self.assertEqual(self.result(), {"build": "NOT_RUN", "tests": "NOT_RUN"})
+
+    def testWindowsPermanentDenialRemainsAnErrorWithoutExecutingBuild(self):
+        with patch.object(build_mac.sys, "platform", "win32"), \
+             patch.object(Path, "replace", side_effect=PermissionError("Synthetic permanent denial")) as replace, \
+             patch.object(build_mac.time, "sleep"), patch.object(build_mac, "execute") as execute:
+            with self.assertRaises(PermissionError):
+                build_mac.write_result({"build": "NOT_RUN", "tests": "NOT_RUN"})
+        execute.assert_not_called()
+        self.assertLessEqual(replace.call_count, 3, "A permanent denial must terminate rather than wait indefinitely")
+        self.assertFalse((self.artifacts / "ios-build-result.json").exists())
+
     def testClearsPreviousPassBeforeProjectGenerationAndRecordsFailure(self):
         (self.artifacts / "ios-build-result.json").write_text('{"build":"PASS"}')
 
@@ -114,7 +140,7 @@ class BuildResultTests(unittest.TestCase):
         self.assertIn("test-without-building", self.commands[-1])
         self.assertIn("-only-testing:AtodeYaruBoxTests", self.commands[-1])
         self.assertIn("platform=iOS Simulator,id=TEST-UDID", self.commands[-1])
-        self.assertEqual(self.run_pipeline("all"), 0)
+        self.assertEqual(self.run_pipeline("all"), 0, str(self.result()))
         self.assertFalse(any(value.startswith("-only-testing:") for value in self.commands[-1]))
         self.assertEqual(self.result()["tests"], "PASS")
         self.assertEqual(self.result()["build_action"], "build-for-testing")

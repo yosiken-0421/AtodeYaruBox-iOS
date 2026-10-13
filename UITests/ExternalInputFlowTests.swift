@@ -84,16 +84,17 @@ final class ExternalInputFlowTests: XCTestCase {
         choose.tap()
         attachment(app, name: "ActualPhotosPickerBeforeSelection")
         // Let the system library finish its initial load before querying thumbnails.
-        let photoReady = NSPredicate { _, _ in self.photoCandidate(app) != nil }
+        // The remote system picker can omit its thumbnails from the host AX
+        // tree. Locate the unique marker visibly rendered in this CI-only image.
+        let photoReady = NSPredicate { _, _ in (try? self.fixturePhotoPoint(app)) != nil }
         let ready = XCTNSPredicateExpectation(predicate: photoReady, object: app)
         let readyResult = XCTWaiter.wait(for: [ready], timeout: 45)
         attachment(app, name: "ActualPhotosPickerAfterLoadingWait")
         XCTAssertEqual(readyResult, .completed, "PHOTO_PICKER_NO_VISIBLE_CELL; " + controls(app))
-        let photo = try XCTUnwrap(photoCandidate(app))
-        let selectedLabel = String(photo.label.prefix(120))
+        let point = try XCTUnwrap(fixturePhotoPoint(app))
+        let selectedLabel = "Observed synthetic PHOTO123 thumbnail"
         attachment(app, name: "ActualPhotosPicker")
-        if photo.isHittable { photo.tap() }
-        else { photo.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap() }
+        app.coordinate(withNormalizedOffset: point).tap()
         let original = app.buttons["読み取った原文"]
         // OCR can add an attachment above this disclosure; ordinary scrolling
         // must still reach the result in the actual compose form.
@@ -156,6 +157,20 @@ final class ExternalInputFlowTests: XCTestCase {
         request.usesLanguageCorrection = false
         try VNImageRequestHandler(cgImage: image).perform([request])
         return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ").lowercased()
+    }
+
+    @MainActor private func fixturePhotoPoint(_ app: XCUIApplication) throws -> CGVector? {
+        guard let image = app.screenshot().image.cgImage else { return nil }
+        let request = VNRecognizeTextRequest()
+        request.recognitionLanguages = ["en-US"]
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = false
+        try VNImageRequestHandler(cgImage: image).perform([request])
+        guard let marker = (request.results ?? []).first(where: {
+            $0.topCandidates(1).first?.string.uppercased().contains("PHOTO123") == true
+        }) else { return nil }
+        let box = marker.boundingBox
+        return CGVector(dx: box.midX, dy: 1 - box.midY)
     }
 
     @MainActor private func safariPage() throws -> XCUIApplication {
@@ -257,30 +272,6 @@ final class ExternalInputFlowTests: XCTestCase {
         reveal(app.staticTexts[address], in: app)
         XCTAssertTrue(app.staticTexts[address].exists)
         attachment(app, name: "SafariSharedItemInHost")
-    }
-
-    @MainActor private func photoCandidate(_ app: XCUIApplication) -> XCUIElement? {
-        for surface in foregroundSurfaces(app) {
-            let window = surface.windows.firstMatch
-            guard window.exists else { continue }
-            let viewport = window.frame
-            let photos = NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS %@ OR label CONTAINS %@ OR label CONTAINS[c] %@", "photo", "写真", "画像", "screenshot")
-            for query in [surface.cells, surface.collectionViews.images, surface.collectionViews.buttons,
-                          surface.images.matching(photos), surface.buttons.matching(photos)] {
-                // A remote picker replaces its AX objects during loading. Resolve
-                // current indices rather than retaining stale remote identities.
-                let images = query.allElementsBoundByIndex.filter {
-                    guard $0.exists else { return false }
-                    let frame = $0.frame
-                    let ratio = frame.width / max(1, frame.height)
-                    return frame.width >= 60 && frame.height >= 60 && frame.width < viewport.width * 0.7
-                        && ratio >= 0.6 && ratio <= 1.6 && frame.intersects(viewport)
-                }
-                if let fixture = images.first(where: { $0.exists && ($0.label.contains("2030") || $0.label.contains("PHOTO123")) }) { return fixture }
-                if let newest = images.last { return newest }
-            }
-        }
-        return nil
     }
 
     @MainActor private func shareCandidate(_ app: XCUIApplication) -> XCUIElement? {

@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 
 if __package__:
@@ -42,7 +43,16 @@ def write_result(result):
     path = ARTIFACTS / name
     temporary = path.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    temporary.replace(path)
+    for attempt in range(3):
+        try:
+            temporary.replace(path)
+            break
+        except PermissionError:
+            # Windows file observers can briefly retain the previous report.
+            # Retry only the atomic write, never a build/test or remote action.
+            if sys.platform != "win32" or attempt == 2:
+                raise
+            time.sleep(0.05)
 
 
 def external_fixtures(udid):
@@ -95,6 +105,7 @@ def main(scope="all", simulator_signing=False, external_input_qa=False, configur
             if scope != "build":
                 device = select_simulator()
                 result["simulator"], result["udid"] = device["name"], device["udid"]
+                result["simulator_runtime"] = device.get("qa_runtime")
                 destination = "platform=iOS Simulator,id=" + device["udid"]
             else:
                 result["simulator"] = "Generic Simulator build"
@@ -179,7 +190,7 @@ def select_simulator():
             raise RuntimeError("Requested iOS Simulator " + requested + " is not installed")
         raise RuntimeError("No available iOS 17+ iPhone Simulator; install a compatible runtime before retrying")
     selected = sorted(phones, key=lambda entry: (entry[0], entry[1]["name"]), reverse=True)[0]
-    device = selected[1]
+    device = dict(selected[1], qa_runtime=".".join(map(str, selected[0])))
     print("Using Simulator:", device["name"], device["udid"], "iOS", ".".join(map(str, selected[0])))
     if device.get("state") != "Booted":
         subprocess.run(["xcrun", "simctl", "boot", device["udid"]], check=True, cwd=ROOT)

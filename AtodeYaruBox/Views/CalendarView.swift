@@ -27,9 +27,10 @@ struct CalendarView: View {
             List {
                 Section {
                     BoxActionButton(title: "戻る", symbol: "chevron.left", identifier: "calendarCloseButton") { dismiss() }
-                    monthControls
+                    monthHeading
                     BoxActionButton(title: "日付一覧",
                                     symbol: "calendar", identifier: "calendarChooseDayButton") { choosingDay = true }
+                    monthControls
                     // Keep the same scalable date controls when the system changes
                     // text size. The ordinary list button is available at every size.
                     let font = UIFont.preferredFont(forTextStyle: .body,
@@ -109,6 +110,7 @@ struct CalendarView: View {
             NavigationStack {
                 List {
                     Section {
+                        monthHeading
                         BoxActionButton(title: "閉じる", symbol: "xmark.circle", identifier: "calendarChooseCloseButton") { choosingDay = false }
                     }
                     Section {
@@ -124,11 +126,11 @@ struct CalendarView: View {
         }
     }
     private var monthControls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            BoxStatusText(text: month.formatted(.dateTime.year().month(.wide)), headline: true,
-                          identifier: "calendarMonthTitle", background: .systemBackground)
-            HStack(spacing: 8) { monthButtons }
-        }
+        HStack(spacing: 8) { monthButtons }
+    }
+    private var monthHeading: some View {
+        BoxStatusText(text: month.formatted(.dateTime.year().month(.wide)), headline: true,
+                      identifier: "calendarMonthTitle", background: .systemBackground)
     }
     @ViewBuilder private var monthButtons: some View {
         BoxActionButton(title: "前月", symbol: "chevron.left", stackedImage: true, identifier: "calendarPreviousMonth", hint: "前の月を表示します") { changeMonth(-1) }
