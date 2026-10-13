@@ -60,6 +60,8 @@ final class SharingCalendarFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Calendar shared plan"].waitForExistence(timeout: 5))
         reveal(app.staticTexts["Calendar shared plan"], app: app)
         let image = XCTAttachment(screenshot: app.screenshot()); image.name = "Calendar-Completed"; image.lifetime = .keepAlways; self.add(image)
+        let back = app.buttons["calendarCloseButton"]; reveal(back, app: app); back.tap()
+        XCTAssertTrue(app.navigationBars["今日"].waitForExistence(timeout: 5))
     }
     @MainActor func testSharingPreviewRequiresOptInAndOpensNativeShareSheet() throws {
         let app = launch(); app.buttons["addButton"].tap(); save(app, title: "Share copy", note: "Synthetic private note")
@@ -92,6 +94,7 @@ final class SharingCalendarFlowTests: XCTestCase {
     @MainActor func testDarkLargestTextCalendarAndSharingRemainUsable() throws {
         let app = launch(large: true)
         app.tabBars.buttons["今日"].tap(); reveal(app.buttons["openCalendarButton"], app: app); app.buttons["openCalendarButton"].tap()
+        reveal(app.buttons["calendarChooseDayButton"], app: app)
         XCTAssertTrue(app.buttons["calendarChooseDayButton"].waitForExistence(timeout: 5))
         try audit(app, name: "Calendar-Dark-LargestText")
         app.buttons["calendarChooseDayButton"].tap()

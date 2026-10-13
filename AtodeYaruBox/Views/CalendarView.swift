@@ -3,6 +3,7 @@ import UIKit
 
 struct CalendarView: View {
     @Environment(AppSession.self) private var session
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var month = Date()
     @State private var selectedDay = Calendar.current.startOfDay(for: Date())
@@ -25,6 +26,7 @@ struct CalendarView: View {
             let counts = CalendarSchedule.counts(entries, in: month, completed: includeCompleted, calendar: calendar)
             List {
                 Section {
+                    BoxActionButton(title: "今日に戻る", symbol: "chevron.left", identifier: "calendarCloseButton") { dismiss() }
                     monthControls
                     BoxActionButton(title: "日付を選ぶ：" + selectedDay.formatted(.dateTime.month().day()),
                                     symbol: "calendar", identifier: "calendarChooseDayButton") { choosingDay = true }
@@ -98,6 +100,7 @@ struct CalendarView: View {
             }
         }
         .navigationTitle("カレンダー").navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .sheet(isPresented: $showingComposer) {
             NavigationStack { ComposeView(initialDueDate: CalendarSchedule.dateForNewItem(on: selectedDay)) }
         }
