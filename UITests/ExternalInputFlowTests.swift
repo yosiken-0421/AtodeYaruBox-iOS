@@ -57,6 +57,15 @@ final class ExternalInputFlowTests: XCTestCase {
         // from its AX button query. Read only this synthetic guest's screen and
         // tap the observed Continue label; no account or permission is accepted.
         try finishSyntheticPhotosWelcome(library)
+        let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let photosAlert = system.alerts.matching(NSPredicate(format: "label CONTAINS %@", "Photos")).firstMatch
+        if photosAlert.waitForExistence(timeout: 3) {
+            let deny = photosAlert.buttons.matching(NSPredicate(format: "label IN %@", ["Don’t Allow", "Don't Allow", "許可しない"])).firstMatch
+            XCTAssertTrue(deny.exists, "Only the stock Photos notification prompt may be dismissed here")
+            deny.tap()
+        }
+        XCTAssertTrue(library.collectionViews.cells.firstMatch.waitForExistence(timeout: 10),
+                      "The synthetic library must finish onboarding before its remote picker opens")
         attachment(library, name: "SyntheticPhotosLibraryBeforePicker")
         let app = host()
         app.buttons["addButton"].tap()
@@ -235,9 +244,9 @@ final class ExternalInputFlowTests: XCTestCase {
             guard window.exists else { continue }
             let viewport = window.frame
             for query in [surface.collectionViews.cells, surface.collectionViews.images] {
-                // Bind the actual accessibility element: picker contents can
-                // change while loading, invalidating a query's numerical index.
-                let images = query.allElementsBoundByAccessibilityElement.filter {
+                // A remote picker replaces its AX objects during loading. Resolve
+                // current indices rather than retaining stale remote identities.
+                let images = query.allElementsBoundByIndex.filter {
                     guard $0.exists else { return false }
                     let frame = $0.frame
                     let ratio = frame.width / max(1, frame.height)

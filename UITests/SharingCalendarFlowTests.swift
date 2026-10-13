@@ -71,10 +71,23 @@ final class SharingCalendarFlowTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [noteVisible], timeout: 5), .completed)
         try audit(app, name: "Share-Light-Preview")
         let share = app.buttons["shareTextButton"]; reveal(share, app: app); share.tap()
-        let copy = app.buttons.matching(NSPredicate(format: "label IN %@", ["Copy", "コピー"])).firstMatch
-        XCTAssertTrue(copy.waitForExistence(timeout: 10), "Native sharing must offer copy without sending to anyone")
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.copyAction(app) != nil }, object: app)
+        let result = XCTWaiter.wait(for: [ready], timeout: 10)
+        let picture = XCTAttachment(screenshot: app.screenshot()); picture.name = "NativeTextShareSheet"; picture.lifetime = .keepAlways; add(picture)
+        XCTAssertEqual(result, .completed, "Native sharing must offer copy without sending to anyone")
+        let copy = try XCTUnwrap(copyAction(app))
         copy.tap()
         XCTAssertTrue(app.navigationBars["項目を共有"].waitForExistence(timeout: 5))
+    }
+    @MainActor private func copyAction(_ app: XCUIApplication) -> XCUIElement? {
+        let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let predicate = NSPredicate(format: "label IN %@", ["Copy", "コピー"])
+        for surface in [app, system].filter({ $0.state == .runningForeground }) {
+            for query in [surface.buttons.matching(predicate), surface.cells.matching(predicate), surface.staticTexts.matching(predicate)] {
+                if let value = query.allElementsBoundByIndex.first(where: { $0.exists && $0.isHittable }) { return value }
+            }
+        }
+        return nil
     }
     @MainActor func testDarkLargestTextCalendarAndSharingRemainUsable() throws {
         let app = launch(large: true)

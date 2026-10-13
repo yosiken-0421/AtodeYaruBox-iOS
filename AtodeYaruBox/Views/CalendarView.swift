@@ -42,21 +42,32 @@ struct CalendarView: View {
                                             .frame(maxWidth: .infinity).accessibilityHidden(true)
                                     }
                                 }
-                                LazyVGrid(columns: Array(repeating: GridItem(.fixed(dayWidth), spacing: 2), count: 7), spacing: 4) {
-                                    ForEach(0..<model.leadingEmptyDays, id: \.self) { _ in Color.clear.frame(height: 1).accessibilityHidden(true) }
-                                    ForEach(model.days) { day in
-                                        CalendarDayButton(number: day.number, count: counts[day.date] ?? 0,
-                                            today: calendar.isDate(day.date, inSameDayAs: timeline.date),
-                                            selected: calendar.isDate(day.date, inSameDayAs: selectedDay),
-                                            spokenDate: day.date.formatted(.dateTime.year().month().day().weekday(.wide))) {
-                                            selectedDay = day.date
+                                VStack(spacing: 4) {
+                                    // A month has at most six rows. Keep all date controls
+                                    // alive while text size changes or the user scrolls.
+                                    ForEach(0..<((model.leadingEmptyDays + model.days.count + 6) / 7), id: \.self) { row in
+                                        HStack(spacing: 2) {
+                                            ForEach(0..<7, id: \.self) { column in
+                                                let index = row * 7 + column - model.leadingEmptyDays
+                                                if model.days.indices.contains(index) {
+                                                    let day = model.days[index]
+                                                    CalendarDayButton(number: day.number, count: counts[day.date] ?? 0,
+                                                        today: calendar.isDate(day.date, inSameDayAs: timeline.date),
+                                                        selected: calendar.isDate(day.date, inSameDayAs: selectedDay),
+                                                        spokenDate: day.date.formatted(.dateTime.year().month().day().weekday(.wide))) {
+                                                        selectedDay = day.date
+                                                    }.frame(width: dayWidth)
+                                                } else {
+                                                    Color.clear.frame(width: dayWidth, height: 1).accessibilityHidden(true)
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }.frame(minWidth: dayWidth * 7 + 12)
                         }.scrollIndicators(.hidden)
-                    Text("数字の下は項目の件数です。日付を押すと、その日の内容を確認できます。")
-                        .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    BoxStatusText(text: "数字の下は項目の件数です。日付を押すと、その日の内容を確認できます。",
+                                  identifier: "calendarHelp", textStyle: .footnote)
                     BoxActionButton(title: "完了した項目：" + (includeCompleted ? "表示する" : "表示しない"),
                                     symbol: includeCompleted ? "checkmark.square" : "square", identifier: "calendarCompletedToggle") {
                         includeCompleted.toggle()
@@ -67,14 +78,14 @@ struct CalendarView: View {
                         showingComposer = true
                     }
                     if selectedItems.isEmpty {
-                        Text("この日の項目はありません").foregroundStyle(.secondary).accessibilityIdentifier("calendarEmptyDay")
+                        BoxStatusText(text: "この日の項目はありません", identifier: "calendarEmptyDay")
                     }
                     ForEach(selectedItems) { item in
                         ItemCard(item: item, now: timeline.date, complete: { session.complete(item) }, snooze: { snoozing = item })
                     }
                 } header: {
-                    Text(selectedDay, format: .dateTime.month().day().weekday(.wide))
-                        .accessibilityIdentifier("calendarSelectedDate")
+                    BoxStatusText(text: selectedDay.formatted(.dateTime.month().day().weekday(.wide)), headline: true,
+                                  identifier: "calendarSelectedDate", background: .systemGroupedBackground)
                 }
                 let undated = session.items.filter { $0.dueDate == nil && $0.status.isOpen }
                 if !undated.isEmpty {
@@ -107,10 +118,7 @@ struct CalendarView: View {
         VStack(alignment: .leading, spacing: 12) {
             BoxStatusText(text: month.formatted(.dateTime.year().month(.wide)), headline: true,
                           identifier: "calendarMonthTitle", background: .systemBackground)
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 8) { monthButtons }
-                VStack(alignment: .leading, spacing: 8) { monthButtons }
-            }
+            HStack(spacing: 8) { monthButtons }
         }
     }
     @ViewBuilder private var monthButtons: some View {
