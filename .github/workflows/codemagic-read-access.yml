@@ -133,5 +133,6 @@
         }
       ]
     }
-  }
+  },
+  "run-name": "Codemagic safe read: ${{ inputs.mode }}"
 }
