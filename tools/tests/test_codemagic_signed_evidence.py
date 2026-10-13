@@ -32,6 +32,14 @@ class Transport:
 
 
 class Checks(unittest.TestCase):
+    def test_publishing_diagnostics_remove_private_text(self):
+        result = m.publishing_flags((TOKEN + ' synthetic@example.invalid Asset validation failed ITMS-90057 Error: -19232').encode())
+        self.assertEqual(result['apple_validation_codes'], ['ITMS-90057'])
+        self.assertEqual(result['numeric_error_codes'], ['-19232'])
+        self.assertEqual(result['diagnostics'], ['ASSET_VALIDATION_FAILED'])
+        self.assertNotIn(TOKEN, json.dumps(result))
+        self.assertNotIn('synthetic@example.invalid', json.dumps(result))
+
     def test_owner_access_result_never_contains_private_account_values(self):
         p=dict(status='OWNER_TESTFLIGHT_ACCESS_RESULT',app_record_id='6821479152',apple_build_id='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea',
             owner_user_found=True,owner_user_role_eligible=True,owner_user_app_access=True,owner_role_unchanged=True,

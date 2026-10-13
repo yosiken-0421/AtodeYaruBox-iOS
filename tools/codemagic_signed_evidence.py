@@ -352,6 +352,23 @@ def download_url(url, name=None):
         return False
 
 
+def publishing_flags(raw):
+    """Return fixed diagnostics only; never provider messages or identities."""
+    text = raw.decode('utf-8', errors='replace')
+    patterns = {
+        'UPLOAD_SUCCEEDED': r'upload(?:ed)? successfully|successfully uploaded|UPLOAD SUCCEEDED',
+        'AUTHENTICATION_FAILED': r'authentication failed|unable to authenticate|invalid credentials|unauthorized|invalid api key',
+        'KEY_CONFIGURATION_MISSING': r'api key.*(?:not found|missing|not configured)|integration.*(?:not found|missing)',
+        'VERSION_ALREADY_EXISTS': r'redundant binary upload|already uploaded|already exists|previously used|CFBundleVersion.*(?:higher|greater)',
+        'ASSET_VALIDATION_FAILED': r'asset validation failed|validation failed|invalid bundle|invalid binary',
+        'NETWORK_FAILURE': r'connection.*(?:timed out|refused|reset)|network.*(?:failed|unreachable)|temporary failure',
+        'CONTRACT_REQUIRED': r'contract.*(?:missing|required|expired)|agreement.*(?:accept|pending)',
+    }
+    return {'diagnostics': [code for code, pattern in patterns.items() if re.search(pattern, text, re.I)],
+            'apple_validation_codes': sorted(set(re.findall(r'\bITMS-[0-9]{4,6}\b', text)))[:8],
+            'numeric_error_codes': sorted(set(re.findall(r'\b(?:Error|ERROR)\s*(?:code)?\s*[:=( ]\s*(-?[0-9]{3,6})\b', text)))[:8]}
+
+
 def inspect(token, opener=None, storage=None):
     result = dict(status='NOT_VERIFIED', app_id=APP_ID, build_id=BUILD, build_commit=COMMIT,
                   private_key_used=False, resources_modified=False, builds_started=0)
@@ -401,7 +418,33 @@ def inspect(token, opener=None, storage=None):
             if not download_url(url):
                 return {**result, 'diagnostic': 'LOG_URL_REFUSED'}
             classified = classify_log(read(url, 256 * 1024, urllib.parse.urlsplit(url).hostname == 'api.codemagic.io'))
-        return {**result, 'status': 'KNOWN_SIGNED_STEP_READ', **classified}
+        publishing = []
+        for later in actions[3:15]:
+            if not isinstance(later, dict):
+                continue
+            label = later.get('name') or later.get('title') or ''
+            if not isinstance(label, str) or not re.search('publish|app.store|upload', label, re.I):
+                continue
+            entry = {'publishing_action_found': True}
+            for field in ('status', 'state'):
+                if later.get(field) in {'finished', 'failed', 'success', 'successful', 'completed', 'canceled', 'timeout'}:
+                    entry['action_status'] = later[field]
+            subs = later.get('subactions')
+            candidates = [later] + (subs[:8] if isinstance(subs, list) else [])
+            flags = []
+            for part in candidates:
+                if not isinstance(part, dict):
+                    continue
+                inline = part.get('logs')
+                if isinstance(inline, str) and len(inline.encode()) <= 256 * 1024:
+                    flags.append(publishing_flags(inline.encode()))
+                elif download_url(part.get('logUrl')):
+                    url = part['logUrl']
+                    flags.append(publishing_flags(read(url, 256 * 1024, urllib.parse.urlsplit(url).hostname == 'api.codemagic.io')))
+            for field in ('diagnostics', 'apple_validation_codes', 'numeric_error_codes'):
+                entry[field] = sorted(set(value for flag in flags for value in flag[field]))[:8]
+            publishing.append(entry)
+        return {**result, 'status': 'KNOWN_SIGNED_STEP_READ', **classified, 'publishing': publishing[:3]}
     except urllib.error.HTTPError as error:
         return {**result, 'diagnostic': 'HTTP_' + str(int(error.code))}
     except Exception:
