@@ -419,7 +419,7 @@ def inspect(token, opener=None, storage=None):
                 return {**result, 'diagnostic': 'LOG_URL_REFUSED'}
             classified = classify_log(read(url, 256 * 1024, urllib.parse.urlsplit(url).hostname == 'api.codemagic.io'))
         publishing = []
-        for later in actions[3:15]:
+        for action_index, later in enumerate(actions[3:15], 3):
             if not isinstance(later, dict):
                 continue
             label = later.get('name') or later.get('title') or ''
@@ -441,6 +441,9 @@ def inspect(token, opener=None, storage=None):
                 elif download_url(part.get('logUrl')):
                     url = part['logUrl']
                     flags.append(publishing_flags(read(url, 256 * 1024, urllib.parse.urlsplit(url).hostname == 'api.codemagic.io')))
+            if not flags:
+                endpoint = 'https://api.codemagic.io/builds/' + BUILD + '/logs/' + str(action_index)
+                flags.append(publishing_flags(read(endpoint, 256 * 1024, True)))
             for field in ('diagnostics', 'apple_validation_codes', 'numeric_error_codes'):
                 entry[field] = sorted(set(value for flag in flags for value in flag[field]))[:8]
             publishing.append(entry)

@@ -40,6 +40,17 @@ class Checks(unittest.TestCase):
         self.assertNotIn(TOKEN, json.dumps(result))
         self.assertNotIn('synthetic@example.invalid', json.dumps(result))
 
+    def test_publishing_fallback_stays_on_verified_build_and_omits_messages(self):
+        data=build();data['data']['artifacts']=[]
+        metadata=dict(application={'_id':m.APP_ID},build={'_id':m.BUILD,'buildActions':[
+            {},{},dict(title=m.STEP,logs=json.dumps(report())),dict(title='Publishing',status='failed')]})
+        api=Transport(data,metadata,b'Asset validation failed ITMS-90057 synthetic@example.invalid')
+        result=m.inspect(TOKEN,api,Transport())
+        self.assertEqual(api.requests[-1].full_url,'https://api.codemagic.io/builds/'+m.BUILD+'/logs/3')
+        self.assertTrue(all(r.method=='GET' for r in api.requests))
+        self.assertEqual(result['publishing'][0]['apple_validation_codes'],['ITMS-90057'])
+        self.assertNotIn('synthetic@example.invalid',json.dumps(result))
+
     def test_owner_access_result_never_contains_private_account_values(self):
         p=dict(status='OWNER_TESTFLIGHT_ACCESS_RESULT',app_record_id='6821479152',apple_build_id='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea',
             owner_user_found=True,owner_user_role_eligible=True,owner_user_app_access=True,owner_role_unchanged=True,
