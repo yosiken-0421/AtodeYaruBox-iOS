@@ -178,8 +178,9 @@ def select_simulator():
         if requested:
             raise RuntimeError("Requested iOS Simulator " + requested + " is not installed")
         raise RuntimeError("No available iOS 17+ iPhone Simulator; install a compatible runtime before retrying")
-    device = sorted(phones, key=lambda entry: (entry[0], entry[1]["name"]), reverse=True)[0][1]
-    print("Using Simulator:", device["name"], device["udid"])
+    selected = sorted(phones, key=lambda entry: (entry[0], entry[1]["name"]), reverse=True)[0]
+    device = selected[1]
+    print("Using Simulator:", device["name"], device["udid"], "iOS", ".".join(map(str, selected[0])))
     if device.get("state") != "Booted":
         subprocess.run(["xcrun", "simctl", "boot", device["udid"]], check=True, cwd=ROOT)
     boot = subprocess.run(["xcrun", "simctl", "bootstatus", device["udid"], "-b"],

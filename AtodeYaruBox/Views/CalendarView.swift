@@ -26,9 +26,9 @@ struct CalendarView: View {
             let counts = CalendarSchedule.counts(entries, in: month, completed: includeCompleted, calendar: calendar)
             List {
                 Section {
-                    BoxActionButton(title: "今日に戻る", symbol: "chevron.left", identifier: "calendarCloseButton") { dismiss() }
+                    BoxActionButton(title: "戻る", symbol: "chevron.left", identifier: "calendarCloseButton") { dismiss() }
                     monthControls
-                    BoxActionButton(title: "日付を選ぶ：" + selectedDay.formatted(.dateTime.month().day()),
+                    BoxActionButton(title: "日付一覧",
                                     symbol: "calendar", identifier: "calendarChooseDayButton") { choosingDay = true }
                     // Keep the same scalable date controls when the system changes
                     // text size. The ordinary list button is available at every size.
@@ -107,13 +107,19 @@ struct CalendarView: View {
         .sheet(item: $snoozing) { item in SnoozeSheet(item: item) }
         .sheet(isPresented: $choosingDay) {
             NavigationStack {
-                List(CalendarMonth(containing: month, calendar: calendar).days) { day in
-                    BoxActionButton(title: day.date.formatted(.dateTime.month().day().weekday(.wide)),
-                                    symbol: calendar.isDate(day.date, inSameDayAs: selectedDay) ? "checkmark.circle" : "calendar",
-                                    identifier: "calendarChooseDay_\(day.number)") { selectedDay = day.date; choosingDay = false }
+                List {
+                    Section {
+                        BoxActionButton(title: "閉じる", symbol: "xmark.circle", identifier: "calendarChooseCloseButton") { choosingDay = false }
+                    }
+                    Section {
+                        ForEach(CalendarMonth(containing: month, calendar: calendar).days) { day in
+                            BoxActionButton(title: day.date.formatted(.dateTime.month().day().weekday(.wide)),
+                                            symbol: calendar.isDate(day.date, inSameDayAs: selectedDay) ? "checkmark.circle" : "calendar",
+                                            identifier: "calendarChooseDay_\(day.number)") { selectedDay = day.date; choosingDay = false }
+                        }
+                    }
                 }
                 .navigationTitle("日付を選ぶ").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { choosingDay = false } } }
             }
         }
     }

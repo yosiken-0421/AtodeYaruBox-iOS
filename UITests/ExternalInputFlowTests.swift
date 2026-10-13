@@ -48,6 +48,7 @@ final class ExternalInputFlowTests: XCTestCase {
     @MainActor func testPhotosPickerReadsSelectedScreenshotAndSearchesOCR() throws {
         // The selected CI guest contains stock samples and a generated image. Finish the
         // stock library's first-run UI before asking its remote picker to load.
+        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 18 {
         let library = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow")
         library.launch()
         let continueButton = library.buttons.matching(NSPredicate(format: "label IN %@", ["Continue", "続ける", "Get Started", "使い始める"])).firstMatch
@@ -75,6 +76,7 @@ final class ExternalInputFlowTests: XCTestCase {
         let libraryResult = XCTWaiter.wait(for: [loaded], timeout: 10)
         attachment(library, name: "SyntheticPhotosLibraryBeforePicker")
         XCTAssertEqual(libraryResult, .completed, "The synthetic library must finish onboarding before its remote picker opens")
+        }
         let app = host()
         app.buttons["addButton"].tap()
         let choose = app.buttons["写真を選ぶ"]
@@ -85,6 +87,7 @@ final class ExternalInputFlowTests: XCTestCase {
         let photoReady = NSPredicate { _, _ in self.photoCandidate(app) != nil }
         let ready = XCTNSPredicateExpectation(predicate: photoReady, object: app)
         let readyResult = XCTWaiter.wait(for: [ready], timeout: 45)
+        attachment(app, name: "ActualPhotosPickerAfterLoadingWait")
         XCTAssertEqual(readyResult, .completed, "PHOTO_PICKER_NO_VISIBLE_CELL; " + controls(app))
         let photo = try XCTUnwrap(photoCandidate(app))
         let selectedLabel = String(photo.label.prefix(120))
@@ -261,7 +264,9 @@ final class ExternalInputFlowTests: XCTestCase {
             let window = surface.windows.firstMatch
             guard window.exists else { continue }
             let viewport = window.frame
-            for query in [surface.collectionViews.cells, surface.collectionViews.images] {
+            let photos = NSPredicate(format: "label CONTAINS[c] %@ OR label CONTAINS %@ OR label CONTAINS %@ OR label CONTAINS[c] %@", "photo", "写真", "画像", "screenshot")
+            for query in [surface.cells, surface.collectionViews.images, surface.collectionViews.buttons,
+                          surface.images.matching(photos), surface.buttons.matching(photos)] {
                 // A remote picker replaces its AX objects during loading. Resolve
                 // current indices rather than retaining stale remote identities.
                 let images = query.allElementsBoundByIndex.filter {

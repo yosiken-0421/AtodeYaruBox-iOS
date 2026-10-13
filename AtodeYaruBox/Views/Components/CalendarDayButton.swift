@@ -40,6 +40,7 @@ struct CalendarDayButton: UIViewRepresentable {
         button.titleLabel?.adjustsFontForContentSizeCategory = true
         button.titleLabel?.numberOfLines = 0
         button.isAccessibilityElement = true
+        button.isSelected = selected
         button.accessibilityIdentifier = "calendarDay_\(number)"
         button.accessibilityLabel = spokenDate + "、\(count)件" + (today ? "、今日" : "")
         button.accessibilityHint = "この日の項目を表示します"

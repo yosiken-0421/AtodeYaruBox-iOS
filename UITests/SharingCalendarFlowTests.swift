@@ -11,9 +11,19 @@ final class SharingCalendarFlowTests: XCTestCase {
         return app
     }
     @MainActor private func reveal(_ element: XCUIElement, app: XCUIApplication) {
-        for _ in 0..<12 { if element.exists && element.isHittable { return }; app.swipeUp() }
-        for _ in 0..<12 { if element.exists && element.isHittable { return }; app.swipeDown() }
-        XCTAssertTrue(element.isHittable)
+        for _ in 0..<12 { if fullyVisible(element, app: app) { return }; app.swipeUp() }
+        for _ in 0..<12 { if fullyVisible(element, app: app) { return }; app.swipeDown() }
+        XCTAssertTrue(fullyVisible(element, app: app), "The control must be visible inside the navigation and tab bars")
+    }
+    @MainActor private func fullyVisible(_ element: XCUIElement, app: XCUIApplication) -> Bool {
+        guard element.exists && element.isHittable else { return false }
+        let window = app.windows.firstMatch.frame
+        let top = app.navigationBars.allElementsBoundByIndex.filter { $0.exists && $0.isHittable }.map { $0.frame.maxY }.max() ?? window.minY
+        let bottom = app.tabBars.allElementsBoundByIndex.filter { $0.exists && $0.isHittable }.map { $0.frame.minY }.min() ?? window.maxY
+        let viewport = CGRect(x: window.minX, y: top + 4, width: window.width, height: max(0, bottom - top - 8))
+        let frame = element.frame
+        return viewport.contains(CGPoint(x: frame.midX, y: frame.midY))
+            && (frame.height > viewport.height || viewport.contains(frame))
     }
     @MainActor private func audit(_ app: XCUIApplication, name: String) throws {
         let picture = XCTAttachment(screenshot: app.screenshot()); picture.name = name; picture.lifetime = .keepAlways; add(picture)
@@ -97,7 +107,12 @@ final class SharingCalendarFlowTests: XCTestCase {
         reveal(app.buttons["calendarChooseDayButton"], app: app)
         XCTAssertTrue(app.buttons["calendarChooseDayButton"].waitForExistence(timeout: 5))
         try audit(app, name: "Calendar-Dark-LargestText")
+        reveal(app.buttons["calendarChooseDayButton"], app: app)
         app.buttons["calendarChooseDayButton"].tap()
+        XCTAssertTrue(app.navigationBars["日付を選ぶ"].waitForExistence(timeout: 5))
+        try audit(app, name: "Calendar-DateList-Dark-LargestText")
+        let close = app.buttons["calendarChooseCloseButton"]; reveal(close, app: app); close.tap()
+        let choose = app.buttons["calendarChooseDayButton"]; reveal(choose, app: app); choose.tap()
         XCTAssertTrue(app.navigationBars["日付を選ぶ"].waitForExistence(timeout: 5))
         let first = app.buttons["calendarChooseDay_1"]; reveal(first, app: app); first.tap()
         let add = app.buttons["calendarAddButton"]; reveal(add, app: app); add.tap()
@@ -108,6 +123,7 @@ final class SharingCalendarFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["sharePreview"].waitForExistence(timeout: 5))
         try audit(app, name: "Share-Dark-LargestText")
         reveal(app.buttons["shareFileButton"], app: app)
+        try audit(app, name: "Share-FileAction-Dark-LargestText")
         XCTAssertGreaterThanOrEqual(app.buttons["shareFileButton"].frame.height, 44)
         XCTAssertTrue(app.buttons["shareFileButton"].isEnabled)
     }
