@@ -10,10 +10,10 @@ import urllib.request
 from tools.codemagic_read_access import APP_ID, NoRedirect, write_report
 from tools.codemagic_apple_evidence import DIAGNOSTICS as APPLE_DIAGNOSTICS
 
-BUILD = '6acb84b62e8bb15cf3ad025b'
-COMMIT = '79263778e5d441ae246f37919cdc2a0662ebd060'
-BRANCH = 'codex/owner-testflight-scoped-8ccd361'
-NATIVE = '300dc7f7143c3c9e6fc0615effe70bd10efb6950'
+BUILD = '6acde9bb2e8bb15cf3b62ff4'
+COMMIT = 'e31efe0dfd731ba2cbfa6b0ac46e7db47697b948'
+BRANCH = 'codex/owner-update-177fc86'
+NATIVE = '177fc860eb69369c9a2cc66639a0d7123b4e5cbf'
 NAME = 'signed-package-result.json'
 STEP = 'Prepare the private signed package without uploading'
 REPORT = Path('artifacts/codemagic-signed-evidence.json')
@@ -52,6 +52,32 @@ DIAGNOSTICS = APPLE_DIAGNOSTICS | {
 
 
 def sanitize(payload):
+    if isinstance(payload,dict) and isinstance(payload.get('status'),str) and payload.get('status') in {'OWNER_UPDATE_DELIVERED','OWNER_UPDATE_NOT_VERIFIED'}:
+        disabled=('binary_uploaded','billing_modified','private_key_disclosed')
+        if (payload.get('verified_native_source')!=NATIVE or payload.get('app_record_id')!='6821479152'
+                or any(payload.get(k) is not False for k in disabled)
+                or type(payload.get('assignment_attempted')) is not bool):return None
+        common=('status','verified_native_source','app_record_id','assignment_attempted')+disabled
+        if payload['status']=='OWNER_UPDATE_NOT_VERIFIED':
+            if (payload.get('stage') not in {'receipt_read','group_read','owner_read','group_assign','group_verify','owner_verify'}
+                    or not isinstance(payload.get('diagnostic'),str)
+                    or not re.fullmatch('OWNER_UPDATE_[A-Z_]+|APPLE_HTTP_[1-5][0-9]{2}',payload['diagnostic'])):return None
+            return {k:payload[k] for k in common+('stage','diagnostic')}
+        required=('internal_testing_only','owner_internal_group_verified','owner_internal_build_assigned',
+                  'owner_tester_registered','previous_build_preserved')
+        off=('public_link_enabled','automatic_future_builds')
+        identifier=payload.get('apple_build_id')
+        if (payload.get('group_id')!='b170086a-49ff-4990-b9cc-b68df67cd5df'
+                or not isinstance(identifier,str) or not re.fullmatch('[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}',identifier)
+                or identifier=='3dc8936a-6059-4ad2-b8c1-9ffcc555a7ea'
+                or payload.get('version')!='0.2.0' or payload.get('build_number')!='2' or payload.get('processing_state')!='VALID'
+                or any(payload.get(k) is not True for k in required) or any(payload.get(k) is not False for k in off)
+                or type(payload.get('other_testers_invited')) is not int or payload['other_testers_invited']!=0
+                or type(payload.get('apple_resources_modified')) is not bool
+                or payload.get('tester_state') not in {'INVITED','ACCEPTED','INSTALLED'}):return None
+        keys=common+('apple_build_id','group_id','version','build_number','processing_state',
+                     'other_testers_invited','apple_resources_modified','tester_state')+required+off
+        return {k:payload[k] for k in keys}
     if isinstance(payload,dict) and payload.get('status')=='OWNER_TESTFLIGHT_ACCESS_RESULT':
         flags=('owner_user_found','owner_user_role_eligible','owner_user_app_access','owner_role_unchanged',
                'owner_access_add_attempted','owner_access_added','owner_app_scope_only',
@@ -173,7 +199,7 @@ def sanitize(payload):
                 result[key] = payload[key]
         for key, values in {'processing_state': {'PROCESSING', 'FAILED', 'INVALID', 'VALID'},
             'internal_beta_state': {'PROCESSING', 'PROCESSING_EXCEPTION', 'MISSING_EXPORT_COMPLIANCE', 'READY_FOR_BETA_TESTING', 'IN_BETA_TESTING', 'EXPIRED', 'IN_EXPORT_COMPLIANCE_REVIEW'},
-            'version': {'0.1.0'}, 'platform': {'IOS'}, 'build_number': {'1'}}.items():
+            'version': {'0.2.0'}, 'platform': {'IOS'}, 'build_number': {'2'}}.items():
             if key in payload:
                 if payload[key] not in values:
                     return None
@@ -193,7 +219,7 @@ def sanitize(payload):
             return None
         if payload['eligible_internal_testing'] and (payload['status'] != 'APPLE_TESTFLIGHT_BUILD_READ'
                 or payload.get('processing_state') != 'VALID' or payload.get('internal_testing_only') is not True
-                or payload.get('metadata_verified') is not True or payload.get('version') != '0.1.0'
+                or payload.get('metadata_verified') is not True or payload.get('version') != '0.2.0'
                 or payload.get('platform') != 'IOS' or payload.get('uses_non_exempt_encryption') is not False
                 or payload.get('internal_beta_state') not in {'READY_FOR_BETA_TESTING', 'IN_BETA_TESTING'}):
             return None
@@ -270,7 +296,7 @@ def sanitize(payload):
 
 def classify_log(raw):
     text = raw.decode('utf-8', errors='replace')
-    result = {'unit_checks_passed': bool(re.search(r'Ran 75 tests[^\n]*\n\s*\nOK(?:\n|$)', text)),
+    result = {'unit_checks_passed': bool(re.search(r'Ran 70 tests[^\n]*\n\s*\nOK(?:\n|$)', text)),
               'unit_checks_failed': 'FAILED (' in text, 'python_module_missing': 'ModuleNotFoundError' in text}
     decoder = json.JSONDecoder()
     for match in re.finditer(r'\{', text):
@@ -385,7 +411,7 @@ def inspect(token, opener=None, storage=None):
 def main():
     write_report(REPORT, {'status': 'NOT_RUN', 'app_id': APP_ID})
     result = inspect(os.environ.pop('CODEMAGIC_API_TOKEN', ''))
-    if result.get('signed_report',{}).get('status') in {'OWNER_TESTFLIGHT_ELIGIBILITY_READ','OWNER_TESTFLIGHT_ACCESS_RESULT'}:
+    if result.get('signed_report',{}).get('status') in {'OWNER_TESTFLIGHT_ELIGIBILITY_READ','OWNER_TESTFLIGHT_ACCESS_RESULT','OWNER_UPDATE_DELIVERED','OWNER_UPDATE_NOT_VERIFIED'}:
         write_report(REPORT,{'status':'PRIVATE_READER_REQUIRED'})
         print('PRIVATE_READER_REQUIRED')
         return 1

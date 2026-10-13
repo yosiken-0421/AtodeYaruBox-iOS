@@ -101,7 +101,7 @@ class Checks(unittest.TestCase):
         payload = report() | dict(status='APPLE_TESTFLIGHT_BUILD_READ', stage='testflight_read',
             apple_resources_modified=False, app_record_id='6821479152', app_store_binary_present=True,
             eligible_internal_testing=True, apple_build_id='a'*36, processing_state='VALID',
-            internal_testing_only=True, metadata_verified=True, version='0.1.0', platform='IOS',
+            internal_testing_only=True, metadata_verified=True, version='0.2.0', platform='IOS',
             uses_non_exempt_encryption=False, internal_beta_state='READY_FOR_BETA_TESTING', private=TOKEN)
         payload.pop('diagnostic')
         self.assertTrue(m.sanitize(payload)['eligible_internal_testing'])
@@ -163,7 +163,7 @@ class Checks(unittest.TestCase):
             self.assertIsNone(m.sanitize({**report(), **change}))
 
     def test_only_fixed_log_flags_and_whitelisted_report_survive(self):
-        result = m.classify_log((TOKEN + '\nRan 75 tests in 0.2s\n\nOK\n' + json.dumps({**report(), 'private': TOKEN})).encode())
+        result = m.classify_log((TOKEN + '\nRan 70 tests in 0.2s\n\nOK\n' + json.dumps({**report(), 'private': TOKEN})).encode())
         self.assertTrue(result['unit_checks_passed'])
         self.assertEqual(result['signed_report'], report())
         self.assertNotIn(TOKEN, json.dumps(result))
