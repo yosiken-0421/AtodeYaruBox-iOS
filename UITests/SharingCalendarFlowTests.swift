@@ -11,23 +11,38 @@ final class SharingCalendarFlowTests: XCTestCase {
         return app
     }
     @MainActor private func reveal(_ element: XCUIElement, app: XCUIApplication) {
-        for _ in 0..<12 { if fullyVisible(element, app: app) { return }; app.swipeUp() }
-        for _ in 0..<12 { if fullyVisible(element, app: app) { return }; app.swipeDown() }
+        // A full swipe can jump over a large control. Drag a measured short
+        // distance along the list's trailing margin to keep its center visible.
+        for _ in 0..<24 {
+            if fullyVisible(element, app: app) { return }
+            guard element.exists else { app.swipeUp(); continue }
+            let frame = element.frame
+            let viewport = visibleArea(app)
+            let upward = frame.maxY > viewport.maxY
+            let gap = upward ? frame.maxY - viewport.maxY : viewport.minY - frame.minY
+            let delta = min(110, max(30, gap + 16)) * (upward ? -1 : 1)
+            let start = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: viewport.maxX - 8, dy: viewport.midY))
+            let end = start.withOffset(CGVector(dx: 0, dy: delta))
+            start.press(forDuration: 0.1, thenDragTo: end)
+        }
         let picture = XCTAttachment(screenshot: app.screenshot()); picture.name = "Unreachable-" + element.identifier; picture.lifetime = .keepAlways; add(picture)
         print("Reveal failed: identifier=\(element.identifier) frame=\(element.frame) window=\(app.windows.firstMatch.frame) navigation=\(app.navigationBars.allElementsBoundByIndex.map { $0.frame }) tabs=\(app.tabBars.allElementsBoundByIndex.map { $0.frame })")
         XCTAssertTrue(fullyVisible(element, app: app), "The control must be visible inside the navigation and tab bars")
     }
     @MainActor private func fullyVisible(_ element: XCUIElement, app: XCUIApplication) -> Bool {
         guard element.exists && element.isHittable else { return false }
+        let viewport = visibleArea(app)
+        let frame = element.frame
+        return viewport.contains(CGPoint(x: frame.midX, y: frame.midY))
+            && (frame.height > viewport.height || viewport.contains(frame))
+    }
+    @MainActor private func visibleArea(_ app: XCUIApplication) -> CGRect {
         let window = app.windows.firstMatch.frame
         let top = app.navigationBars.allElementsBoundByIndex.filter { $0.exists && $0.frame.intersects(window) }.map { $0.frame.maxY }.max() ?? window.minY
         let bottom = app.tabBars.allElementsBoundByIndex.filter { bar in
             bar.exists && bar.buttons.allElementsBoundByIndex.contains { $0.exists && $0.isHittable }
         }.map { $0.frame.minY }.min() ?? window.maxY
-        let viewport = CGRect(x: window.minX, y: top + 4, width: window.width, height: max(0, bottom - top - 8))
-        let frame = element.frame
-        return viewport.contains(CGPoint(x: frame.midX, y: frame.midY))
-            && (frame.height > viewport.height || viewport.contains(frame))
+        return CGRect(x: window.minX, y: top + 4, width: window.width, height: max(0, bottom - top - 8))
     }
     @MainActor private func audit(_ app: XCUIApplication, name: String) throws {
         let picture = XCTAttachment(screenshot: app.screenshot()); picture.name = name; picture.lifetime = .keepAlways; add(picture)

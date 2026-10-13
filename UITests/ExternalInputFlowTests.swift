@@ -167,7 +167,11 @@ final class ExternalInputFlowTests: XCTestCase {
         request.usesLanguageCorrection = false
         try VNImageRequestHandler(cgImage: image).perform([request])
         guard let marker = (request.results ?? []).first(where: {
-            $0.topCandidates(1).first?.string.uppercased().contains("PHOTO123") == true
+            let value = ($0.topCandidates(1).first?.string ?? "").uppercased()
+                .filter { $0.isLetter || $0.isNumber }
+            // The gallery crops the image's left edge. Match either its unique
+            // printed date or marker, tolerating only the I/1 glyph ambiguity.
+            return value.contains("20301008") || value.replacingOccurrences(of: "I", with: "1").contains("PHOTO123")
         }) else { return nil }
         let box = marker.boundingBox
         return CGVector(dx: box.midX, dy: 1 - box.midY)
