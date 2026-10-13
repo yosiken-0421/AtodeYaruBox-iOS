@@ -213,8 +213,20 @@ final class ExternalInputFlowTests: XCTestCase {
             var currentMenu: XCUIElement?
             var previousFrame: CGRect?
             var stable = 0
+            var dismissedIntroduction = false
             let menuReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
                 let window = safari.windows.firstMatch.frame
+                // The fresh iOS 26 guest can show this non-permission tutorial
+                // after the page loads. It covers More and blocks its hit point.
+                let introduction = safari.staticTexts.matching(NSPredicate(format:
+                    "label CONTAINS[c] %@ AND label CONTAINS[c] %@", "View Bookmarks", "Share Menu")).firstMatch
+                if !dismissedIntroduction, introduction.exists,
+                   let close = safari.buttons.matching(NSPredicate(format: "label == %@", "Close"))
+                    .allElementsBoundByIndex.first(where: { $0.exists && $0.isHittable && window.contains($0.frame) }) {
+                    self.attachment(safari, name: "ObservedSafariMenuIntroduction")
+                    close.tap(); dismissedIntroduction = true; stable = 0
+                    return false
+                }
                 guard let candidate = menus.allElementsBoundByIndex.first(where: {
                     $0.exists && $0.isHittable && window.contains($0.frame)
                         && $0.frame.width > 0 && $0.frame.height > 0
@@ -224,7 +236,7 @@ final class ExternalInputFlowTests: XCTestCase {
                 previousFrame = frame; currentMenu = candidate
                 return stable >= 2
             }, object: safari)
-            let menuResult = XCTWaiter.wait(for: [menuReady], timeout: 10)
+            let menuResult = XCTWaiter.wait(for: [menuReady], timeout: 15)
             attachment(safari, name: "ActualSafariToolbarBeforeMenu")
             XCTAssertEqual(menuResult, .completed, "SAFARI_PAGE_MENU_NOT_READY; " + controls(safari))
             guard menuResult == .completed, let menu = currentMenu else { return }
