@@ -39,6 +39,7 @@ struct BoxActionButton: UIViewRepresentable {
     let title: String
     let symbol: String
     var prominent = false
+    var stackedImage = false
     let identifier: String
     var hint: String? = nil
     let action: () -> Void
@@ -71,6 +72,7 @@ struct BoxActionButton: UIViewRepresentable {
         var configuration = UIButton.Configuration.plain()
         configuration.title = title
         configuration.imagePadding = 8
+        configuration.imagePlacement = stackedImage ? .top : .leading
         configuration.titleLineBreakMode = .byWordWrapping
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 14, bottom: 12, trailing: 14)
         configuration.baseForegroundColor = .label

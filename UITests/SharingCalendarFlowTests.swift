@@ -96,7 +96,7 @@ final class SharingCalendarFlowTests: XCTestCase {
         try audit(app, name: "Calendar-Dark-LargestText")
         app.buttons["calendarChooseDayButton"].tap()
         XCTAssertTrue(app.navigationBars["日付を選ぶ"].waitForExistence(timeout: 5))
-        let first = app.buttons["calendarDay_1"]; reveal(first, app: app); first.tap()
+        let first = app.buttons["calendarChooseDay_1"]; reveal(first, app: app); first.tap()
         let add = app.buttons["calendarAddButton"]; reveal(add, app: app); add.tap()
         save(app, title: "Large calendar note")
         let detail = app.buttons["detailButton"].firstMatch; reveal(detail, app: app); detail.tap()

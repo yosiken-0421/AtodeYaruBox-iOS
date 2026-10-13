@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Keep native font metadata on every number, including during system size audits.
+/// Native button title and subtitle fonts remain identifiable during size changes.
 struct CalendarDayButton: UIViewRepresentable {
     let number: Int
     let count: Int
@@ -11,79 +11,50 @@ struct CalendarDayButton: UIViewRepresentable {
     let action: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(action) }
-    func makeUIView(context: Context) -> CalendarDayControl {
-        let control = CalendarDayControl(frame: .zero)
-        control.addTarget(context.coordinator, action: #selector(Coordinator.activate), for: .touchUpInside)
-        updateUIView(control, context: context)
-        return control
+    func makeUIView(context: Context) -> BoxNativeActionButton {
+        let button = BoxNativeActionButton(frame: .zero)
+        button.addTarget(context.coordinator, action: #selector(Coordinator.activate), for: .touchUpInside)
+        updateUIView(button, context: context)
+        return button
     }
-    func updateUIView(_ control: CalendarDayControl, context: Context) {
+    func updateUIView(_ button: BoxNativeActionButton, context: Context) {
         context.coordinator.action = action
-        control.number.text = String(number)
-        control.number.bold = selected
-        control.number.updateFont()
-        control.count.text = "\(count)件"
-        control.mark.text = today ? "今日" : selected ? "✓" : ""
-        control.mark.isHidden = !today && !selected
-        control.accessibilityIdentifier = "calendarDay_\(number)"
-        control.accessibilityLabel = spokenDate + "、\(count)件" + (today ? "、今日" : "")
-        control.accessibilityHint = "この日の項目を表示します"
-        control.accessibilityTraits = selected ? [.button, .selected] : .button
+        button.textStyle = selected ? .headline : .body
+        button.subtitleTextStyle = .caption1
+        button.symbolName = ""
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = String(number)
+        configuration.subtitle = "\(count)件" + (today ? "\n今日" : selected ? "\n✓" : "")
+        configuration.titleAlignment = .center
+        configuration.titleLineBreakMode = .byWordWrapping
+        configuration.subtitleLineBreakMode = .byWordWrapping
+        configuration.titlePadding = 4
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 2, bottom: 4, trailing: 2)
         let accent = UIColor(named: "BoxAccent") ?? .systemTeal
-        control.backgroundColor = selected ? accent.withAlphaComponent(0.12) : .clear
-        control.layer.borderColor = selected ? accent.cgColor : UIColor.clear.cgColor
-        control.invalidateIntrinsicContentSize()
+        configuration.background.backgroundColor = selected ? accent.withAlphaComponent(0.12) : .clear
+        configuration.background.strokeColor = selected ? accent : .clear
+        configuration.background.strokeWidth = selected ? 2 : 0
+        configuration.background.cornerRadius = 8
+        button.configuration = configuration
+        button.contentHorizontalAlignment = .center
+        button.titleLabel?.adjustsFontForContentSizeCategory = true
+        button.titleLabel?.numberOfLines = 0
+        button.isAccessibilityElement = true
+        button.accessibilityIdentifier = "calendarDay_\(number)"
+        button.accessibilityLabel = spokenDate + "、\(count)件" + (today ? "、今日" : "")
+        button.accessibilityHint = "この日の項目を表示します"
+        button.accessibilityTraits = selected ? [.button, .selected] : .button
+        button.setNeedsUpdateConfiguration()
+        button.invalidateIntrinsicContentSize()
     }
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: CalendarDayControl, context: Context) -> CGSize? {
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: BoxNativeActionButton, context: Context) -> CGSize? {
         let width = max(44, proposal.width ?? 44)
-        let height = uiView.stack.systemLayoutSizeFitting(CGSize(width: width - 4, height: 0),
-            withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel).height
-        return CGSize(width: width, height: max(76, height + 8))
+        let fit = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return CGSize(width: width, height: max(76, fit.height))
     }
     @MainActor final class Coordinator: NSObject {
         var action: () -> Void
         init(_ action: @escaping () -> Void) { self.action = action }
         @objc func activate() { action() }
     }
-}
-
-@MainActor final class CalendarDayControl: UIControl {
-    let number = BoxNativeStatusLabel(frame: .zero)
-    let count = BoxNativeStatusLabel(frame: .zero)
-    let mark = BoxNativeStatusLabel(frame: .zero)
-    let stack = UIStackView()
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        isAccessibilityElement = true
-        layer.cornerRadius = 8
-        layer.borderWidth = 2
-        stack.axis = .vertical
-        stack.alignment = .fill
-        stack.spacing = 4
-        stack.isUserInteractionEnabled = false
-        for (label, style) in [(number, UIFont.TextStyle.body), (count, .caption1), (mark, .caption2)] {
-            label.textStyle = style
-            label.numberOfLines = 0
-            label.textAlignment = .center
-            label.textColor = .label
-            label.isAccessibilityElement = false
-            label.updateFont()
-            stack.addArrangedSubview(label)
-        }
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 2),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -2),
-            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
-            stack.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 4),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -4)
-        ])
-    }
-    override func accessibilityActivate() -> Bool {
-        sendActions(for: .touchUpInside)
-        return true
-    }
-    required init?(coder: NSCoder) { return nil }
 }

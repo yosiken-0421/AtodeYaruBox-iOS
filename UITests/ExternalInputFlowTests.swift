@@ -46,7 +46,7 @@ final class ExternalInputFlowTests: XCTestCase {
     }
 
     @MainActor func testPhotosPickerReadsSelectedScreenshotAndSearchesOCR() throws {
-        // The selected CI guest contains only the generated image. Finish the
+        // The selected CI guest contains stock samples and a generated image. Finish the
         // stock library's first-run UI before asking its remote picker to load.
         let library = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow")
         library.launch()
@@ -64,9 +64,17 @@ final class ExternalInputFlowTests: XCTestCase {
             XCTAssertTrue(deny.exists, "Only the stock Photos notification prompt may be dismissed here")
             deny.tap()
         }
-        XCTAssertTrue(library.collectionViews.cells.firstMatch.waitForExistence(timeout: 10),
-                      "The synthetic library must finish onboarding before its remote picker opens")
+        // iOS 18's main Photos mosaic does not expose collection-view cells.
+        // Confirm the observed library screen instead, keeping the real picker
+        // selection and subsequent OCR assertions unchanged.
+        let loaded = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let text = (try? self.screenText(library)) ?? ""
+            return text.contains("photos") && text.contains("recent days")
+                && !text.contains("would like to send") && !text.contains("what's new")
+        }, object: library)
+        let libraryResult = XCTWaiter.wait(for: [loaded], timeout: 10)
         attachment(library, name: "SyntheticPhotosLibraryBeforePicker")
+        XCTAssertEqual(libraryResult, .completed, "The synthetic library must finish onboarding before its remote picker opens")
         let app = host()
         app.buttons["addButton"].tap()
         let choose = app.buttons["写真を選ぶ"]
@@ -135,6 +143,16 @@ final class ExternalInputFlowTests: XCTestCase {
             library.coordinate(withNormalizedOffset: CGVector(dx: box.midX, dy: 1 - box.midY)).tap()
             _ = library.collectionViews.cells.firstMatch.waitForExistence(timeout: 5)
         }
+    }
+
+    @MainActor private func screenText(_ app: XCUIApplication) throws -> String {
+        guard let image = app.screenshot().image.cgImage else { return "" }
+        let request = VNRecognizeTextRequest()
+        request.recognitionLanguages = ["en-US"]
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = false
+        try VNImageRequestHandler(cgImage: image).perform([request])
+        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ").lowercased()
     }
 
     @MainActor private func safariPage() throws -> XCUIApplication {

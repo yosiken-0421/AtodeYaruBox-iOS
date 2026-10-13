@@ -107,7 +107,7 @@ struct CalendarView: View {
                 List(CalendarMonth(containing: month, calendar: calendar).days) { day in
                     BoxActionButton(title: day.date.formatted(.dateTime.month().day().weekday(.wide)),
                                     symbol: calendar.isDate(day.date, inSameDayAs: selectedDay) ? "checkmark.circle" : "calendar",
-                                    identifier: "calendarDay_\(day.number)") { selectedDay = day.date; choosingDay = false }
+                                    identifier: "calendarChooseDay_\(day.number)") { selectedDay = day.date; choosingDay = false }
                 }
                 .navigationTitle("日付を選ぶ").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { choosingDay = false } } }
@@ -122,11 +122,11 @@ struct CalendarView: View {
         }
     }
     @ViewBuilder private var monthButtons: some View {
-        BoxActionButton(title: "前月", symbol: "chevron.left", identifier: "calendarPreviousMonth", hint: "前の月を表示します") { changeMonth(-1) }
-        BoxActionButton(title: "今日", symbol: "calendar", identifier: "calendarTodayButton") {
+        BoxActionButton(title: "前月", symbol: "chevron.left", stackedImage: true, identifier: "calendarPreviousMonth", hint: "前の月を表示します") { changeMonth(-1) }
+        BoxActionButton(title: "今日", symbol: "calendar", stackedImage: true, identifier: "calendarTodayButton") {
             month = Date(); selectedDay = calendar.startOfDay(for: Date())
         }
-        BoxActionButton(title: "翌月", symbol: "chevron.right", identifier: "calendarNextMonth", hint: "次の月を表示します") { changeMonth(1) }
+        BoxActionButton(title: "翌月", symbol: "chevron.right", stackedImage: true, identifier: "calendarNextMonth", hint: "次の月を表示します") { changeMonth(1) }
     }
     private func changeMonth(_ amount: Int) {
         guard let date = calendar.date(byAdding: .month, value: amount, to: CalendarMonth(containing: month).start) else { return }

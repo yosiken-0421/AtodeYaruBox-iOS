@@ -6,6 +6,7 @@ import UIKit
 final class BoxNativeActionButton: UIButton {
     var textStyle: UIFont.TextStyle = .body
     var symbolName = ""
+    var subtitleTextStyle: UIFont.TextStyle = .caption1
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -23,11 +24,18 @@ final class BoxNativeActionButton: UIButton {
         guard var current = configuration else { return }
         let font = UIFont.preferredFont(forTextStyle: textStyle, compatibleWith: traitCollection)
         let accent = UIColor(named: "BoxAccent") ?? .systemTeal
-        current.image = UIImage(systemName: symbolName, withConfiguration: UIImage.SymbolConfiguration(font: font))?
+        current.image = symbolName.isEmpty ? nil : UIImage(systemName: symbolName, withConfiguration: UIImage.SymbolConfiguration(font: font))?
             .withTintColor(accent, renderingMode: .alwaysOriginal)
         current.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var attributes = incoming
             attributes.font = font
+            attributes.foregroundColor = .label
+            return attributes
+        }
+        let subtitleFont = UIFont.preferredFont(forTextStyle: subtitleTextStyle, compatibleWith: traitCollection)
+        current.subtitleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var attributes = incoming
+            attributes.font = subtitleFont
             attributes.foregroundColor = .label
             return attributes
         }
