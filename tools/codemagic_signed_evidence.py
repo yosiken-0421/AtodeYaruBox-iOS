@@ -359,7 +359,7 @@ def publishing_flags(raw):
         'UPLOAD_SUCCEEDED': r'upload(?:ed)? successfully|successfully uploaded|UPLOAD SUCCEEDED',
         'AUTHENTICATION_FAILED': r'authentication failed|unable to authenticate|invalid credentials|unauthorized|invalid api key',
         'KEY_CONFIGURATION_MISSING': r'api key.*(?:not found|missing|not configured)|integration.*(?:not found|missing)',
-        'VERSION_ALREADY_EXISTS': r'redundant binary upload|already uploaded|already exists|previously used|CFBundleVersion.*(?:higher|greater)',
+        'VERSION_ALREADY_EXISTS': r'redundant binary upload|already uploaded|already exists|already been used|already been uploaded|previously used|CFBundleVersion.*(?:higher|greater)',
         'ASSET_VALIDATION_FAILED': r'asset validation failed|validation failed|invalid bundle|invalid binary',
         'NETWORK_FAILURE': r'connection.*(?:timed out|refused|reset)|network.*(?:failed|unreachable)|temporary failure',
         'CONTRACT_REQUIRED': r'contract.*(?:missing|required|expired)|agreement.*(?:accept|pending)',
@@ -373,7 +373,7 @@ def publishing_flags(raw):
             if words:lines.append(' '.join(words)[:240])
     return {'diagnostics': [code for code, pattern in patterns.items() if re.search(pattern, text, re.I)],
             'apple_validation_codes': sorted(set(re.findall(r'\bITMS-[0-9]{4,6}\b', text)))[:8],
-            'numeric_error_codes': sorted(set(re.findall(r'\b(?:Error|ERROR)\s*(?:code)?\s*[:=( ]\s*(-?[0-9]{3,6})\b', text)))[:8],
+            'numeric_error_codes': sorted(set(re.findall(r'\b(?:Error|status|HTTP)\s*(?:code)?\s*[:=(\[ ]+\s*(-?[0-9]{3,6})\b', text, re.I)))[:8],
             'fixed_terms': sorted(set(re.findall(r'[a-z_]+',text.lower())) & vocabulary)[:60],
             'fixed_error_lines':lines[:6]}
 
