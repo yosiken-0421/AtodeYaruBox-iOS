@@ -21,7 +21,7 @@ UDID = "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"
 class NativeFixtureTests(unittest.TestCase):
     def setUp(self):
         self.root = PREPARED / ("native-fixture-host-test-" + uuid.uuid4().hex)
-        self.root.mkdir()
+        self.root.mkdir(parents=True)
         (self.root / "tools").mkdir()
         (self.root / "tools/loopback_fixture.py").write_bytes((ACTIVE_TOOLS / "loopback_fixture.py").read_bytes())
         self.addCleanup(self.cleanup)

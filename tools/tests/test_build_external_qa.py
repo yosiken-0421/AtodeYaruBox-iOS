@@ -22,7 +22,7 @@ spec.loader.exec_module(module)
 class ExternalQABuildTests(unittest.TestCase):
     def setUp(self):
         self.root = PREPARED / ("external-build-host-test-" + uuid.uuid4().hex)
-        self.root.mkdir()
+        self.root.mkdir(parents=True)
         self.artifacts = self.root / "artifacts"
         self.artifacts.mkdir()
         self.addCleanup(self.cleanup)
