@@ -13,9 +13,12 @@ final class SharingCalendarFlowTests: XCTestCase {
     @MainActor private func reveal(_ element: XCUIElement, app: XCUIApplication) {
         // A full swipe can jump over a large control. Drag a measured short
         // distance along the list's trailing margin to keep its center visible.
-        for _ in 0..<24 {
+        for attempt in 0..<48 {
             if fullyVisible(element, app: app) { return }
-            guard element.exists else { app.swipeUp(); continue }
+            guard element.exists else {
+                if attempt < 24 { app.swipeUp() } else { app.swipeDown() }
+                continue
+            }
             let frame = element.frame
             let viewport = visibleArea(app)
             let upward = frame.maxY > viewport.maxY
@@ -25,8 +28,8 @@ final class SharingCalendarFlowTests: XCTestCase {
             let end = start.withOffset(CGVector(dx: 0, dy: delta))
             start.press(forDuration: 0.1, thenDragTo: end)
         }
-        let picture = XCTAttachment(screenshot: app.screenshot()); picture.name = "Unreachable-" + element.identifier; picture.lifetime = .keepAlways; add(picture)
-        print("Reveal failed: identifier=\(element.identifier) frame=\(element.frame) window=\(app.windows.firstMatch.frame) navigation=\(app.navigationBars.allElementsBoundByIndex.map { $0.frame }) tabs=\(app.tabBars.allElementsBoundByIndex.map { $0.frame })")
+        let picture = XCTAttachment(screenshot: app.screenshot()); picture.name = "UnreachableControl"; picture.lifetime = .keepAlways; add(picture)
+        print("Reveal failed: exists=\(element.exists) frame=\(element.exists ? String(describing: element.frame) : "not present") window=\(app.windows.firstMatch.frame) navigation=\(app.navigationBars.allElementsBoundByIndex.map { $0.frame }) tabs=\(app.tabBars.allElementsBoundByIndex.map { $0.frame })")
         XCTAssertTrue(fullyVisible(element, app: app), "The control must be visible inside the navigation and tab bars")
     }
     @MainActor private func fullyVisible(_ element: XCUIElement, app: XCUIApplication) -> Bool {
@@ -143,6 +146,7 @@ final class SharingCalendarFlowTests: XCTestCase {
         try audit(app, name: "Share-Dark-LargestText")
         reveal(app.buttons["shareFileButton"], app: app)
         try audit(app, name: "Share-FileAction-Dark-LargestText")
+        reveal(app.buttons["shareFileButton"], app: app)
         XCTAssertGreaterThanOrEqual(app.buttons["shareFileButton"].frame.height, 44)
         XCTAssertTrue(app.buttons["shareFileButton"].isEnabled)
     }
