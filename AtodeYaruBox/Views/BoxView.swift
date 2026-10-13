@@ -48,6 +48,7 @@ struct BoxView: View {
                     }
                 }
             }
+            .modifier(BoxReadableScrollBoundary())
         }
         .navigationTitle("箱")
         .toolbar {
@@ -59,6 +60,17 @@ struct BoxView: View {
             }
         }
         .sheet(item: $snoozing) { item in SnoozeSheet(item: item) }
+    }
+}
+
+/// Keep large item text above the tab bar out of iOS 26's gradual edge blur.
+private struct BoxReadableScrollBoundary: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.scrollEdgeEffectStyle(.hard, for: .bottom)
+        } else {
+            content
+        }
     }
 }
 
