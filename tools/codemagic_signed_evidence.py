@@ -363,10 +363,13 @@ def publishing_flags(raw):
         'ASSET_VALIDATION_FAILED': r'asset validation failed|validation failed|invalid bundle|invalid binary',
         'NETWORK_FAILURE': r'connection.*(?:timed out|refused|reset)|network.*(?:failed|unreachable)|temporary failure',
         'CONTRACT_REQUIRED': r'contract.*(?:missing|required|expired)|agreement.*(?:accept|pending)',
+        'IPA_ARTIFACT_MISSING': r'(?:ipa|artifact).*(?:not found|missing|none|no such)|no.*(?:ipa|artifact)',
     }
+    vocabulary=set('no not found find missing failed failure unable can cannot could invalid error errors exception upload uploaded uploading publish publishing artifact artifacts file files ipa application bundle identifier permission permissions access denied authorization unauthorized authentication token api key credentials integration account app store connect expired certificate profile version build duplicate validation validate sdk minimum supported connection timeout response server retry try again undefined null name required environment variable variables available'.split())
     return {'diagnostics': [code for code, pattern in patterns.items() if re.search(pattern, text, re.I)],
             'apple_validation_codes': sorted(set(re.findall(r'\bITMS-[0-9]{4,6}\b', text)))[:8],
-            'numeric_error_codes': sorted(set(re.findall(r'\b(?:Error|ERROR)\s*(?:code)?\s*[:=( ]\s*(-?[0-9]{3,6})\b', text)))[:8]}
+            'numeric_error_codes': sorted(set(re.findall(r'\b(?:Error|ERROR)\s*(?:code)?\s*[:=( ]\s*(-?[0-9]{3,6})\b', text)))[:8],
+            'fixed_terms': sorted(set(re.findall(r'[a-z_]+',text.lower())) & vocabulary)[:60]}
 
 
 def inspect(token, opener=None, storage=None):
@@ -431,21 +434,23 @@ def inspect(token, opener=None, storage=None):
                     entry['action_status'] = later[field]
             subs = later.get('subactions')
             candidates = [later] + (subs[:8] if isinstance(subs, list) else [])
-            flags = []
+            flags = [publishing_flags(json.dumps(later).encode())]
+            log_flags = []
             for part in candidates:
                 if not isinstance(part, dict):
                     continue
                 inline = part.get('logs')
                 if isinstance(inline, str) and len(inline.encode()) <= 256 * 1024:
-                    flags.append(publishing_flags(inline.encode()))
+                    log_flags.append(publishing_flags(inline.encode()))
                 elif download_url(part.get('logUrl')):
                     url = part['logUrl']
-                    flags.append(publishing_flags(read(url, 256 * 1024, urllib.parse.urlsplit(url).hostname == 'api.codemagic.io')))
-            if not flags:
+                    log_flags.append(publishing_flags(read(url, 256 * 1024, urllib.parse.urlsplit(url).hostname == 'api.codemagic.io')))
+            if not log_flags:
                 endpoint = 'https://api.codemagic.io/builds/' + BUILD + '/logs/' + str(action_index)
-                flags.append(publishing_flags(read(endpoint, 256 * 1024, True)))
-            for field in ('diagnostics', 'apple_validation_codes', 'numeric_error_codes'):
-                entry[field] = sorted(set(value for flag in flags for value in flag[field]))[:8]
+                log_flags.append(publishing_flags(read(endpoint, 256 * 1024, True)))
+            flags += log_flags
+            for field in ('diagnostics', 'apple_validation_codes', 'numeric_error_codes', 'fixed_terms'):
+                entry[field] = sorted(set(value for flag in flags for value in flag[field]))[:(60 if field=='fixed_terms' else 8)]
             publishing.append(entry)
         return {**result, 'status': 'KNOWN_SIGNED_STEP_READ', **classified, 'publishing': publishing[:3]}
     except urllib.error.HTTPError as error:
